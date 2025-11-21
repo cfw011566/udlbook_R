@@ -1,0 +1,6 @@
+.RData
+.RHistory
+*.html
+*.log
+*.tex
+*_files/
