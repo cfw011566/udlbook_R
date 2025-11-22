@@ -36,7 +36,7 @@ Any other functions are by definition **non-linear**.
 # Define a linear function with just one input, x
 linear_function_1D <- function(x, beta, omega) {
   # TODO -- replace the code line below with formula for 1D linear equation
-  y = beta + omega * x
+  y <- beta + omega * x
   y
 }
 ```
@@ -46,14 +46,16 @@ linear_function_1D <- function(x, beta, omega) {
 # Plot the 1D linear function
 
 # Define an array of x values from 0 to 10 with increments of 0.01
-x <- seq(0.0,10.0,0.01)
+x <- seq(0.0, 10.0, 0.01)
 # Compute y using the function you filled in above
-beta = 10.0; omega = -2.0
+beta <- 10.0
+omega <- -2.0
 
-y = linear_function_1D(x,beta,omega)
+y <- linear_function_1D(x, beta, omega)
 
 # Plot this function
-plot(x,y,type="l",xlim=c(0,10),ylim=c(0,10),xlab="x",ylab="y",lwd=2,col="red")
+plot(x, y, type = "l", xlim = c(0, 10), ylim = c(0, 10), xlab = "x", ylab = "y",
+     lwd = 2, col = "red")
 
 # TODO -- experiment with changing the values of beta and omega
 # to understand what they do.  Try to make a line
@@ -64,20 +66,21 @@ Now let's investigate a 2D linear function
 
 ```{r}
 #| label: draw_2D_function
-# Code to draw 2D function -- read it so you know what is going on, but you don't have to change it
+# Code to draw 2D function -- read it so you know what is going on,
+# but you don't have to change it
 draw_2D_function <- function(x1, x2, y) {
-  filled.contour(x1, x2, y,
-		 color.palette = terrain.colors,
-		 plot.title = title(main = "Filled Contour Plot", xlab = "X-axis", ylab = "Y-axis"))
+  filled.contour(x1, x2, y, color.palette = terrain.colors,
+                 plot.title = title(main = "Filled Contour Plot",
+                                    xlab = "X-axis", ylab = "Y-axis"))
 }
 ```
 
 ```{r}
 #| label: linear_function_2D
 # Define a linear function with two inputs, x1 and x2
-linear_function_2D <- function(x1,x2,beta=0,omega1=1,omega2=-0.5) {
+linear_function_2D <- function(x1, x2, beta, omega1, omega2) {
   # TODO -- replace the code line below with formula for 2D linear equation
-  y = beta + omega1 * x1 + omega2 * x2
+  y <- beta + omega1 * x1 + omega2 * x2
   y
 }
 ```
@@ -85,7 +88,7 @@ linear_function_2D <- function(x1,x2,beta=0,omega1=1,omega2=-0.5) {
 ```{r}
 #| label: Plot 2D linear function
 #| fig-width: 6
-#| fig-asp: 1 
+#| fig-asp: 1
 # Plot the 2D function
 
 # Make 2D array of x and y points
@@ -93,14 +96,13 @@ x1 <- seq(0.0, 10.0, 0.1)
 x2 <- seq(0.0, 10.0, 0.1)
 
 # Compute the 2D function for given values of omega1, omega2
-beta = 0.0; omega1 = 1.0; omega2 = -0.5
-# y_func <- function(x, y) { linear_function_2D(x,y,beta,omega1,omega2) }
-# y  <- outer(x1, x2, y_func)
-y  <- outer(x1, x2, function(x, y) { linear_function_2D(x,y,beta, omega1, omega2)})
+beta <- 0.0
+omega1 <- 1.0
+omega2 <- -0.5
+y <- outer(x1, x2, function(x, y) { linear_function_2D(x, y, beta, omega1, omega2) })
 
 # Draw the function.
 draw_2D_function(x1, x2, y)
-# filled.contour(x1, x2, y, plot.title = title(xlab = "x1", ylab = "x2"))
 
 # TODO
 # Predict what this plot will look like if you set omega_1 to zero
@@ -136,9 +138,9 @@ for short. Here, lowercase bold symbols are used for vectors. Upper case bold sy
 
 ```{r}
 # Define a linear function with three inputs, x1, x2, and x_3
-linear_function_3D <- function(x1,x2,x3,beta,omega1,omega2,omega3) {
+linear_function_3D <- function(x1, x2, x3, beta, omega1, omega2, omega3) {
   # TODO -- replace the code below with formula for a single 3D linear equation
-  y = beta + omega1 * x1 + omega2 * x2 + omega3 * x3
+  y <- beta + omega1 * x1 + omega2 * x2 + omega3 * x3
   y
 }
 ```
@@ -147,12 +149,19 @@ Let's compute two linear equations, using both the individual equations and the 
 
 ```{r}
 # Define the parameters
-beta1 = 0.5; beta2 = 0.2
-omega11 = -1.0; omega12 = 0.4; omega13 = -0.3
-omega21 = 0.1; omega22 = 0.1; omega23 = 1.2
+beta1 <- 0.5
+beta2 <- 0.2
+omega11 <- -1.0
+omega12 <- 0.4
+omega13 <- -0.3
+omega21 <- 0.1
+omega22 <- 0.1
+omega23 <- 1.2
 
 # Define the inputs
-x1 = 4; x2 =-1; x3 = 2
+x1 <- 4
+x2 <- -1
+x3 <- 2
 
 # Compute using the individual equations
 y1 = linear_function_3D(x1,x2,x3,beta1,omega11,omega12,omega13)
@@ -164,7 +173,7 @@ sprintf("y2 = %.3f", y2)
 # Define vectors and matrices
 beta_vec <- c(beta1, beta2)
 omega_mat = matrix(c(omega11, omega12, omega13, omega21, omega22, omega23), 2, byrow=TRUE)
-x_vec = c(x1, x2, x3)
+x_vec <- c(x1, x2, x3)
 
 # Compute with vector/matrix form
 y_vec <- beta_vec + omega_mat %*% x_vec
@@ -189,11 +198,12 @@ We'll start with the exponential function $y=\exp[x]=e^x$ which maps the real li
 # Draw the exponential function
 
 # Define an array of x values from -5 to 5 with increments of 0.01
-x <- seq(-5.0,5.0, 0.01)
+x <- seq(-5.0, 5.0, 0.01)
 y <- exp(x)
 
 # Plot this function
-plot(x,y,type="l",xlim=c(-5,5),ylim=c(0,100),xlab="x",ylab="exp[x]",lwd=2,col="red")
+plot(x, y, type = "l", xlim = c(-5, 5), ylim = c(0, 100),
+     xlab = "x", ylab = "exp[x]", lwd = 2, col = "red")
 ```
 
 # Questions
@@ -210,11 +220,12 @@ Now let's consider the logarithm function $y=\log[x]$. Throughout the book we al
 # Draw the logarithm function
 
 # Define an array of x values from -5 to 5 with increments of 0.01
-x <- seq(0.01,5.0, 0.01)
+x <- seq(0.01, 5.0, 0.01)
 y <- log(x)
 
 # Plot this function
-plot(x,y,type="l",xlim=c(0,5),ylim=c(-5,5),xlab="x",ylab="log[x]",lwd=2,col="red")
+plot(x, y, type = "l", xlim = c(0, 5), ylim = c(-5, 5),
+     xlab = "x", ylab = "log[x]", lwd = 2, col = "red")
 ```
 
 # Questions
