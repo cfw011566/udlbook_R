@@ -41,7 +41,7 @@ r_plot <- function(x, y, phi0, phi1) {
        axes = TRUE, type = "n")
   points(x, y, pch = 16, col = "darkblue")
   # Draw line
-  x_line <- seq(0,2, 0.01)
+  x_line <- seq(0, 2, 0.01)
   y_line <- f(x_line, phi0, phi1)
 
   lines(x_line, y_line, lwd = 2, col = "blue")
@@ -59,8 +59,76 @@ phi1 <- 0.2
 r_plot(x, y, phi0, phi1)
 ```
 
+```{r}
+#| label: Function to calculate the loss
+compute_loss <- function(x, y, phi0, phi1) {
+  # TODO Replace this line with the loss calculation (equation 2.5)
+  loss <- 0
+  loss <- sum((f(x, phi0, phi1) - y)^2)
+  
+  return(loss)
+}
+```
+
+```{r}
+#| label: Compute the loss for our current model
+loss <- compute_loss(x, y, phi0, phi1)
+sprintf("Your Loss = %.2f, Ground truth = 7.07", loss)
+```
+
+```{r}
+#| label: loss of figure 2.2c
+#| fig-width: 6
+#| fig-height: 6
+# Set the intercept and slope as in figure 2.2c
+phi0 <- 1.60
+phi1 <- -0.8
+# Plot the data and the model
+r_plot(x, y, phi0, phi1)
+loss <- compute_loss(x, y, phi0, phi1)
+sprintf("Your Loss = %.2f, Ground truth = 10.28", loss)
+```
+
+```{r}
+#| label: fit the model
+#| fig-width: 6
+#| fig-height: 6
+# TODO -- Change the parameters manually to fit the model
+# First fix phi1 and try changing phi0 until you can't make the loss go down any more
+# Then fix phi0 and try changing phi1 until you can't make the loss go down any more
+# Repeat this process until you find a set of parameters that fit the model as in figure 2.2d
+# You can either do this by hand, or if you want to get fancy, write code to descent automatically in this way
+# Start at these values:
+phi0 <- 0.85
+phi1 <- 0.5
+
+r_plot(x, y, phi0, phi1)
+sprintf("Your Loss = %.2f", compute_loss(x, y, phi0, phi1))
+```
+
 # Visualizing the loss function
 
 The above process is equivalent to descending coordinate wise on the loss function
 
 Now let's plot that function
+
+```{r}
+#| label: the loss function as a heatmap
+#| fig-width: 7
+#| fig-height: 7
+# Plot the loss function as a heatmap
+phi0_range <- seq(0.0, 2.0, 0.02)
+phi1_range <- seq(-1.0, 1.0, 0.02)
+all_losses <- outer(phi0_range, phi1_range, '+')
+for (i in 1:length(phi0_range)) {
+  for (j in 1:length(phi1_range))
+    all_losses[i, j] = compute_loss(x, y, phi0_range[i], phi1_range[j])
+}
+# all_losses <- outer(phi0_range, phi1_range, function(p0, p1) { compute_loss(x, y, p0, p1)})
+
+filled.contour(phi0_range, phi1_range, all_losses, xlab = expression(paste("Intercept, ", phi[0])), ylab = expression(paste("Slope, ", phi[1])))
+points(phi0, phi1, pch = 19, col = "red")
+
+# Plot the position of your best fitting line on the loss function
+# It should be close to the minimum
+```

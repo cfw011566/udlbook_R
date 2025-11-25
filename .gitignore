@@ -4,3 +4,4 @@
 *.log
 *.tex
 *_files/
+.Rproj.user
