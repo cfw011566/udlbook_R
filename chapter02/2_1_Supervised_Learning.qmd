@@ -15,6 +15,11 @@ format: html
 ```
 
 ```{r}
+#| echo: false
+library(ggplot2)
+```
+
+```{r}
 #| label: Create some input / output data
 x <- c(0.03, 0.19, 0.34, 0.46, 0.78, 0.81, 1.08, 1.18, 1.39, 1.60, 1.65, 1.90)
 y <- c(0.67, 0.85, 1.05, 1.0, 1.40, 1.5, 1.3, 1.54, 1.55, 1.68, 1.73, 1.6)
@@ -46,6 +51,23 @@ r_plot <- function(x, y, phi0, phi1) {
 
   lines(x_line, y_line, lwd = 2, col = "blue")
 }
+
+g_plot <- function(x, y, phi0, phi1) {
+  x_line <- seq(0, 2, 0.01)
+  y_line <- f(x_line, phi0, phi1)
+  ggplot() +
+    xlim(c(0, 2)) +
+    ylim(c(0, 2)) +
+    geom_point(
+      data = data.frame(x = x, y = y),
+      mapping = aes(x = x, y = y),
+      color = "darkblue") +
+    geom_line(
+      data = data.frame(x = x_line, y = y_line),
+      mapping = aes(x = x, y = y),
+      color = "blue",
+      linewidth = 0.5)
+}
 ```
 
 ```{r}
@@ -57,6 +79,7 @@ phi0 <- 0.4
 phi1 <- 0.2
 # Plot the data and the model
 r_plot(x, y, phi0, phi1)
+g_plot(x, y, phi0, phi1)
 ```
 
 ```{r}
@@ -87,6 +110,7 @@ phi1 <- -0.8
 r_plot(x, y, phi0, phi1)
 loss <- compute_loss(x, y, phi0, phi1)
 sprintf("Your Loss = %.2f, Ground truth = 10.28", loss)
+g_plot(x, y, phi0, phi1)
 ```
 
 ```{r}
@@ -104,6 +128,7 @@ phi1 <- 0.5
 
 r_plot(x, y, phi0, phi1)
 sprintf("Your Loss = %.2f", compute_loss(x, y, phi0, phi1))
+g_plot(x, y, phi0, phi1)
 ```
 
 # Visualizing the loss function
@@ -119,16 +144,40 @@ Now let's plot that function
 # Plot the loss function as a heatmap
 phi0_range <- seq(0.0, 2.0, 0.02)
 phi1_range <- seq(-1.0, 1.0, 0.02)
-all_losses <- outer(phi0_range, phi1_range, '+')
+all_losses <- outer(phi0_range, phi1_range)
 for (i in 1:length(phi0_range)) {
   for (j in 1:length(phi1_range))
     all_losses[i, j] = compute_loss(x, y, phi0_range[i], phi1_range[j])
 }
 # all_losses <- outer(phi0_range, phi1_range, function(p0, p1) { compute_loss(x, y, p0, p1)})
 
-filled.contour(phi0_range, phi1_range, all_losses, xlab = expression(paste("Intercept, ", phi[0])), ylab = expression(paste("Slope, ", phi[1])))
-points(phi0, phi1, pch = 19, col = "red")
+filled.contour(
+  phi0_range,
+  phi1_range,
+  all_losses,
+  xlab = expression(paste("Intercept, ", phi[0])),
+  ylab = expression(paste("Slope, ", phi[1])),
+  plot.axes = {
+    axis(1)
+    axis(2)
+    points(phi0, phi1, pch = 19, col = "red")
+  }
+)
 
 # Plot the position of your best fitting line on the loss function
 # It should be close to the minimum
+
+df <- expand.grid(x = phi0_range, y = phi1_range)
+df$z <- as.vector(all_losses)
+ggplot() +
+  xlim(0, 2) +
+  ylim(-1, 1) +
+  geom_contour_filled(
+    data = df,
+    mapping = aes(x = x, y = y, z = z),
+    bins = 20) +
+  geom_point(
+    data = data.frame(x = phi0, y = phi1),
+    mapping = aes(x = x, y = y),
+    color = "red")
 ```

@@ -13,6 +13,7 @@ editor: visual
 #| fig-height: 6
 #| out-width: 80%
 #| fig-align: center
+library(ggplot2)
 ```
 
 **Linear functions**
@@ -48,18 +49,24 @@ linear_function_1D <- function(x, beta, omega) {
 # Define an array of x values from 0 to 10 with increments of 0.01
 x <- seq(0.0, 10.0, 0.01)
 # Compute y using the function you filled in above
-beta <- 10.0
-omega <- -2.0
+beta <- 0
+omega <- 0
 
 y <- linear_function_1D(x, beta, omega)
 
 # Plot this function
-plot(x, y, type = "l", xlim = c(0, 10), ylim = c(0, 10), xlab = "x", ylab = "y",
-     lwd = 2, col = "red")
+plot(x, y, type = "l", xlim = c(0, 10), ylim = c(0, 10), xlab = "x", ylab = "y", lwd = 2, col = "red")
 
 # TODO -- experiment with changing the values of beta and omega
 # to understand what they do.  Try to make a line
 # that crosses the y-axis at y=10 and the x-axis at x=5
+beta <- 10.0
+omega <- -2.0
+y <- linear_function_1D(x, beta, omega)
+ggplot(data = data.frame(x = x, y = y), mapping = aes(x = x, y = y)) +
+  geom_line(linewidth = 0.5, color = "red") +
+  coord_cartesian(xlim = c(0, 10), ylim = c(0, 10))
+
 ```
 
 Now let's investigate a 2D linear function
@@ -103,6 +110,29 @@ y <- outer(x1, x2, function(x, y) { linear_function_2D(x, y, beta, omega1, omega
 
 # Draw the function.
 draw_2D_function(x1, x2, y)
+
+# df <- expand.grid(x = x1, y = x2)
+# xyz.func <- function(x, y) { linear_function_2D(x, y, beta, omega1, omega2)}
+# df$z <- with(df, xyz.func(x, y))
+
+# df <- expand.grid(x = x1, y = x2) |> dplyr::mutate(z = linear_function_2D(x, y, beta, omega1, omega2))
+
+df <- expand.grid(x = x1, y = x2)
+df <- dplyr::mutate(df, z = linear_function_2D(x, y, beta, omega1, omega2))
+
+ggplot(df, aes(x = x, y = y, z = z)) +
+  xlim(0, 10) +
+  ylim(0, 10) +
+  geom_contour_filled(bins = 20) +
+#  scale_fill_viridis_d() + # Using a viridis color scale for better perception
+  scale_fill_viridis_d(name = "Z Value") +
+  labs(
+    title = "Filled Contour Plot",
+    x = "X-axis",
+    y = "Y-axis",
+    fill = ""
+  )
+#  theme_minimal()
 
 # TODO
 # Predict what this plot will look like if you set omega_1 to zero
