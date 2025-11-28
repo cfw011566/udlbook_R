@@ -1,0 +1,272 @@
+---
+title: Notebook 3.1 Shallow neural networks I
+author: CF Wang
+date: 2025-11-28
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 8
+#| fig-height: 6
+#| out-width: 80%
+#| fig-align: center
+```
+
+```{r}
+#| echo: false
+library(ggplot2)
+```
+
+Let's first construct the shallow neural network with one input, three hidden units, and one output described in section 3.1 of the book.
+
+```{r}
+#| label: ReLU
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+```
+
+```{r}
+#| label: Test ReLU function
+#| fig-width: 6
+#| fig-height: 6
+# Make an array of inputs
+z <- seq(-5, 5, 0.1)
+RelU_z <- ReLU(z)
+
+# Plot the ReLU function
+plot(0, xlim = c(-5, 5), ylim = c(-5, 5),
+     xlab = expression(paste("z")),
+     ylab = expression(paste("ReLU[", z, "]")),
+     axes = TRUE, type = "n")
+lines(z, RelU_z, lwd = 2, col = "red")
+
+ggplot() +
+  xlim(c(-5, 5)) +
+  ylim(c(-5, 5)) +
+  xlab("z") +
+  ylab("ReLU[z]") +
+  geom_line(
+    data = data.frame(x = z, y = RelU_z),
+    mapping = aes(x = x, y = y),
+    color = "red",
+    linewidth = 0.75) +
+  theme_minimal()
+```
+
+```{r}
+#| label: shallow_1_1_3
+# Define a shallow neural network with, one input, one output, and three hidden units
+shallow_1_1_3 <- function(x, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31) {
+  # TODO Replace the code below to compute the three initial lines
+  # from the theta parameters (i.e. implement equations at bottom of figure 3.3a-c).  These are the preactivations
+  pre_1 <- theta_10 + theta_11 * x
+  pre_2 <- theta_20 + theta_21 * x
+  pre_3 <- theta_30 + theta_31 * x
+
+  # Pass these through the ReLU function to compute the activations as in
+  # figure 3.3 d-f
+  act_1 <- activation_fn(pre_1)
+  act_2 <- activation_fn(pre_2)
+  act_3 = activation_fn(pre_3)
+
+  # TODO Replace the code below to weight the activations using phi1, phi2 and phi3
+  # To create the equivalent of figure 3.3 g-i
+  w_act_1 <- phi_1 * act_1
+  w_act_2 <- phi_2 * act_2
+  w_act_3 <- phi_3 * act_3
+
+  # TODO Replace the code below to combining the weighted activations and add
+  # phi_0 to create the output as in figure 3.3 j
+  y <- phi_0 + w_act_1 + w_act_2 + w_act_3
+
+  # Return everything we have calculated
+  return(list(y = y, pre1 = pre_1, pre2 = pre_2, pre3 = pre_3, act1 = act_1, act2 = act_2, act3 = act_3, wact1 = w_act_1, wact2 = w_act_2, wact3 = w_act_3))
+}
+```
+
+```{r}
+#| label: plot neural
+# Plot the shallow neural network.  We'll assume input in is range [0,1] and output [-1,1]
+# If the plot_all flag is set to true, then we'll plot all the intermediate stages as in Figure 3.3
+plot_neural <- function(x, nn_result, plot_all = FALSE, x_data = NULL, y_data = NULL) {
+
+  # Plot intermediate plots if flag set
+  if (plot_all) {
+    par(mfrow = c(3, 3))
+    
+    plot(x, nn_result$pre1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Preactivation", col = "red")
+    plot(x, nn_result$pre2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Preactivation", col = "blue")
+    plot(x, nn_result$pre3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Preactivation", col = "green")
+    
+    plot(x, nn_result$act1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Activation", col = "red")
+    plot(x, nn_result$act2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Activation", col = "blue")
+    plot(x, nn_result$act3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Activation", col = "green")
+    
+    plot(x, nn_result$wact1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "red")
+    plot(x, nn_result$wact2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "blue")
+    plot(x, nn_result$wact3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "green")
+  }
+  
+  par(mfrow = c(1, 1))
+  plot(x, nn_result$y, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Output, y", lwd = 2, col = "skyblue")
+  if (!is.null(x_data)) {
+    points(x_data, y_data, pch = 19, cex = 1.5, col = "purple")
+  }
+}
+```
+
+```{r}
+#| label: run neural network
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+# Now lets define some parameters and run the neural network
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <- 2.0
+theta_30 <- -0.5; theta_31 <- 0.65
+phi_0 <- -0.3; phi_1 <- 2.0; phi_2 <- -1.0; phi_3 <- 7.0
+
+# Define a range of input values
+x <- seq(0, 1, 0.01)
+
+# We run the neural network for each of these input values
+# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
+nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE)
+```
+
+If your code is correct, then the final output should look like this:
+
+Now let's play with the parameters to make sure we understand how they work. The original parameters were:
+
+$$
+\theta_{10} = 0.3; \theta_{11} = -1.0
+$$ $$
+\theta_{20} = -1.0; \theta_{21} = 2.0
+$$ $$
+\theta_{30} = -0.5; \theta_{31} = 0.65
+$$ $$
+\phi_0 = -0.3; \phi_1 = 2.0; \phi_2 = -1.0; \phi_3 = 7.0
+$$
+
+```{r}
+#| label: test neural network
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+# TODO
+# 1. Predict what effect changing phi_0 will have on the network.
+
+# 2. Predict what effect multiplying phi_1, phi_2, phi_3 by 0.5 would have.  Check if you are correct
+
+# 3. Predict what effect multiplying phi_1 by -1 will have.  Check if you are correct.
+
+# 4. Predict what effect setting theta_20 to -1.2 will have.  Check if you are correct.
+
+# 5. Change the parameters so that there are only two "joints" (including outside the range of the plot)
+# There are actually three ways to do this. See if you can figure them all out
+
+# 6. With the original parameters, the second line segment is flat (i.e. has slope zero)
+# How could you change theta_10 so that all of the segments have non-zero slopes
+
+# 7. What do you predict would happen if you multiply theta_20 and theta21 by 0.5, and phi_2 by 2.0?
+# Check if you are correct.
+
+# 8. What do you predict would happen if you multiply theta_20 and theta21 by -0.5, and phi_2 by -2.0?
+# Check if you are correct.
+
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <- 2.0
+theta_30 <- -0.5; theta_31 <- 0.65
+phi_0 <- -0.3; phi_1 <- 2.0; phi_2 <- -1.0; phi_3 <- 7.0
+
+# Define a range of input values
+x <- seq(0, 1, 0.01)
+
+# We run the neural network for each of these input values
+# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
+nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE)
+```
+
+# Least squares loss
+
+Now let's consider fitting the network to data. First we need to define the loss function. We'll use the least squares loss:
+
+$$
+L[\boldsymbol\phi] = \sum_{i=1}^{I} (y_i - \text{f}[x_i, \boldsymbol\phi])^2
+$$
+
+where $(x_i,y_i)$ is an input/output training pair and $\text{f}[\bullet,\boldsymbol\phi]$ is the neural network with parameters $\phi$. The first term in the brackets is the ground truth output and the second term is the prediction of the model
+
+```{r}
+#| label: Least squares function
+# Least squares function
+least_squares_loss <- function(y_train, y_predict) {
+  # TODO Replace the line below to compute the sum of squared
+  # differences between the real values of y and the predicted values from the model f[x_i,phi]
+  # (see figure 2.2 of the book)
+  # you will need to use the function np.sum
+  loss = sum((y_train - y_predict)^2)
+  
+  loss
+}
+```
+
+```{r}
+#| label: loss of neural network
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+# Now lets define some parameters, run the neural network, and compute the loss
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <- 2.0
+theta_30 <- -0.5; theta_31 <- 0.65
+phi_0 <- -0.3; phi_1 <- 2.0; phi_2 <- -1.0; phi_3 <- 7.0
+
+# Define a range of input values
+x <- seq(0, 1, 0.01)
+
+x_train <- c(0.09291784, 0.46809093, 0.93089486,  0.67612654, 0.73441752, 0.86847339, 0.49873225, 0.51083168, 0.18343972, 0.99380898, 0.27840809, 0.38028817, 0.12055708, 0.56715537, 0.92005746, 0.77072270, 0.85278176, 0.05315950, 0.87168699, 0.58858043)
+y_train = c(-0.15934537, 0.18195445, 0.451270150, 0.13921448, 0.09366691, 0.30567674, 0.372291170, 0.40716968, -0.08131792, 0.41187806, 0.36943738, 0.3994327, 0.019062570, 0.35820410, 0.452564960, -0.0183121, 0.02957665, -0.24354444, 0.148038840, 0.26824970)
+
+# We run the neural network for each of these input values
+nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE, x_data = x_train, y_data = y_train)
+
+# Run the neural network on the training data
+nn_predict <- shallow_1_1_3(x_train, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+y_predict <- nn_predict$y
+
+# Compute the least squares loss and print it out
+loss <- least_squares_loss(y_train, y_predict)
+sprintf("Your Loss = %.3f, True value = 9.385", loss)
+
+# TODO.  Manipulate the parameters (by hand!) to make the function
+# fit the data better and try to reduce the loss to as small a number
+# as possible.  The best that I could do was 0.181
+# Tip... start by manipulating phi_0.
+# It's not that easy, so don't spend too much time on this!
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <- 2.0
+theta_30 <- -0.5; theta_31 <- 0.65
+phi_0 <- 0.35; phi_1 <- -2.1; phi_2 <- -0.7; phi_3 <- 6.0
+
+nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+plot_neural(x, nn_result, plot_all = TRUE, x_data = x_train, y_data = y_train)
+
+nn_predict <- shallow_1_1_3(x_train, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+y_predict <- nn_predict$y
+
+loss <- least_squares_loss(y_train, y_predict)
+sprintf("After adjustment: Loss = %.3f, True value = 9.385", loss)
+```
