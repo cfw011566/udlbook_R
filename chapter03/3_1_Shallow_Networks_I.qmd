@@ -17,6 +17,7 @@ format: html
 ```{r}
 #| echo: false
 library(ggplot2)
+library(patchwork)
 ```
 
 Let's first construct the shallow neural network with one input, three hidden units, and one output described in section 3.1 of the book.
@@ -84,7 +85,7 @@ shallow_1_1_3 <- function(x, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10
   y <- phi_0 + w_act_1 + w_act_2 + w_act_3
 
   # Return everything we have calculated
-  return(list(y = y, pre1 = pre_1, pre2 = pre_2, pre3 = pre_3, act1 = act_1, act2 = act_2, act3 = act_3, wact1 = w_act_1, wact2 = w_act_2, wact3 = w_act_3))
+  return(data.frame(x = x, y = y, pre1 = pre_1, pre2 = pre_2, pre3 = pre_3, act1 = act_1, act2 = act_2, act3 = act_3, wact1 = w_act_1, wact2 = w_act_2, wact3 = w_act_3))
 }
 ```
 
@@ -120,6 +121,60 @@ plot_neural <- function(x, nn_result, plot_all = FALSE, x_data = NULL, y_data = 
 ```
 
 ```{r}
+#| label: plot neural with ggplot
+g_plot_neural <- function(nn_result, plot_all = FALSE, x_data = NULL, y_data = NULL) {
+  if (is.null(x_data)) {
+    p0 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + xlab("Input, x") + ylab("Output, y") +
+      geom_line(mapping = aes(x = x, y = y), color = "skyblue", linewidth = 1.0)
+  } else {
+    p0 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + xlab("Input, x") + ylab("Output, y") +
+      geom_line(mapping = aes(x = x, y = y), color = "skyblue", linewidth = 1.0) +
+      geom_point(data = data.frame(x = x_data, y = y_data), mapping = aes(x = x, y = y), size = 3, color = "purple")
+  }
+  
+  if (plot_all) {
+    # p1 <- ggplot(data.frame(x = x, y = nn_result$pre1)) + theme_minimal() +
+    p1 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Preactivation") +
+      geom_line(mapping = aes(x = x, y = pre1), color = "red", linewidth = 0.75)
+    p2 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Preactivation") +
+      geom_line(mapping = aes(x = x, y = pre2), color = "blue", linewidth = 0.75)
+    p3 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Preactivation") +
+      geom_line(mapping = aes(x = x, y = pre3), color = "green", linewidth = 0.75)
+    
+    p4 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Activation") +
+      geom_line(mapping = aes(x = x, y = act1), color = "red", linewidth = 0.75)
+    p5 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Activation") +
+      geom_line(mapping = aes(x = x, y = act2), color = "blue", linewidth = 0.75)
+    p6 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Activation") +
+      geom_line(mapping = aes(x = x, y = act3), color = "green", linewidth = 0.75)
+    
+    p7 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Weighted Act") +
+      geom_line(mapping = aes(x = x, y = wact1), color = "red", linewidth = 0.75)
+    p8 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Weighted Act") +
+      geom_line(mapping = aes(x = x, y = wact2), color = "blue", linewidth = 0.75)
+    p9 <- ggplot(nn_result) + theme_minimal() +
+      xlim(c(0, 1)) + ylim(c(-1, 1)) + ylab("Weighted Act") +
+      geom_line(mapping = aes(x = x, y = wact3), color = "green", linewidth = 0.75)
+    
+    (p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9) / p0
+  } else {
+    p0
+  }
+  
+}
+```
+
+```{r}
 #| label: run neural network
 #| fig-width: 8
 #| fig-height: 8
@@ -139,6 +194,10 @@ nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, 
 
 # And then plot it
 plot_neural(x, nn_result, plot_all = TRUE)
+```
+
+```{r}
+g_plot_neural(nn_result, plot_all = TRUE)
 ```
 
 If your code is correct, then the final output should look like this:
@@ -269,4 +328,12 @@ y_predict <- nn_predict$y
 
 loss <- least_squares_loss(y_train, y_predict)
 sprintf("After adjustment: Loss = %.3f, True value = 9.385", loss)
+```
+
+```{r}
+#| label: ggplot of train data
+#| fig-width: 6
+#| fig-height: 18
+#| fig-asp: 1
+g_plot_neural(nn_result, plot_all = TRUE, x_data = x_train, y_data = y_train)
 ```
