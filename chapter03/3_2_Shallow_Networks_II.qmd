@@ -51,6 +51,26 @@ plot_neural_2_inputs <- function(x1, x2, nn_result) {
 ```
 
 ```{r}
+#| label: neural with 2 inputs by ggplot
+g_draw_2D_function <- function(x1, x2, y, title) {
+}
+
+g_plot_neural_2_inputs <- function(nn_result) {
+  ggplot(nn_result, aes(x = x1, y = x2, z = y)) +
+    xlim(0, 10) +
+    ylim(0, 10) +
+    geom_contour_filled(bins = 20) +
+    labs(
+      x = "x1",
+      y = "x2",
+      fill = ""
+    ) +
+  theme_minimal()
+}
+```
+
+
+```{r}
 #| label: ReLU
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
@@ -92,6 +112,9 @@ shallow_2_1_3 <- function(x1, x2, activation_fn, phi_0,phi_1,phi_2,phi_3, theta_
 
 ```{r}
 #| label: run neural network
+#| fig-height: 6
+#| fig-width: 6
+#| fig-asp: 1
 # Now lets define some parameters and run the neural network
 theta_10 <- -4.0; theta_11 <-  0.9; theta_12 <-  0.0
 theta_20 <-  5.0; theta_21 <- -0.9; theta_22 <- -0.5
@@ -106,5 +129,103 @@ x2 = seq(0.0, 10.0, 0.1)
 nn_result = shallow_2_1_3(x1, x2, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
 
 # And then plot it
-plot_neural_2_inputs(x1, x2, nn_result)
+# plot_neural_2_inputs(x1, x2, nn_result)
+
+g_plot_neural_2_inputs(nn_result)
+```
+
+How many different linear polytopes are made by this model? Identify each in the network output.
+
+Now we'll extend this model to have two outputs $y_1$ and $y_2$, each of which can be visualized with a separate heatmap. You will now have sets of parameters $\phi_{10}, \phi_{11}, \phi_{12}, \phi_{13}$ and $\phi_{20}, \phi_{21}, \phi_{22}, \phi_{23}$ that correspond to each of these outputs.
+
+```{r}
+#| label: shallow with 2 inputs, 2 outputs
+# Define a shallow neural network with, two inputs, two outputs, and three hidden units
+shallow_2_2_3 <- function(x1, x2, activation_fn, phi_10,phi_11,phi_12,phi_13, phi_20,phi_21,phi_22,phi_23, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32) {
+  df <- expand.grid(x1 = x1, x2 = x2)
+  # TODO -- write this function -- replace the dummy code below
+  df$pre_1 <- theta_10 + theta_11 * df$x1 + theta_12 * df$x2
+  df$pre_2 <- theta_20 + theta_21 * df$x1 + theta_22 * df$x2
+  df$pre_3 <- theta_30 + theta_31 * df$x1 + theta_32 * df$x2
+  df$act_1 <- activation_fn(df$pre_1)
+  df$act_2 <- activation_fn(df$pre_2)
+  df$act_3 <- activation_fn(df$pre_3)
+  df$w_act_11 <- phi_11 * df$act_1
+  df$w_act_12 <- phi_12 * df$act_2
+  df$w_act_13 <- phi_13 * df$act_3
+  df$w_act_21 <- phi_21 * df$act_1
+  df$w_act_22 <- phi_22 * df$act_2
+  df$w_act_23 <- phi_23 * df$act_3
+  df$y1 <- phi_10 + df$w_act_11 + df$w_act_12 + df$w_act_13
+  df$y2 <- phi_20 + df$w_act_21 + df$w_act_22 + df$w_act_23
+
+  # Return everything we have calculated
+  return(df)
+}
+```
+
+```{r}
+#
+g_plot_neural_2_inputs_2_outputs <- function(nn_df) {
+  ggplot(nn_df, aes(x = x1, y = x2, z = y1)) +
+    xlim(0, 10) +
+    ylim(0, 10) +
+    geom_contour_filled(bins = 20) +
+    labs(
+      x = "x1",
+      y = "x2",
+      fill = ""
+    ) +
+  theme_minimal()
+  
+  ggplot(nn_df, aes(x = x1, y = x2, z = y2)) +
+    xlim(0, 10) +
+    ylim(0, 10) +
+    geom_contour_filled(bins = 20) +
+    labs(
+      x = "x1",
+      y = "x2",
+      fill = ""
+    ) +
+  theme_minimal()
+}
+
+# Now lets define some parameters and run the neural network
+theta_10 <- -4.0; theta_11 <-  0.9; theta_12 <-  0.0
+theta_20 <-  5.0; theta_21 <- -0.9; theta_22 <- -0.5
+theta_30 <- -7;   theta_31 <-  0.5; theta_32 <-  0.9
+phi_10 <-  0.0; phi_11 <- -2.0; phi_12 <-  2.0; phi_13 <- 1.5
+phi_20 <- -2.0; phi_21 <- -1.0; phi_22 <- -2.0; phi_23 <- 0.8
+
+x1 <- seq(0.0, 10.0, 0.1)
+x2 <- seq(0.0, 10.0, 0.1)
+
+# We run the neural network for each of these input values
+nn_result = shallow_2_2_3(x1, x2, ReLU, phi_10,phi_11,phi_12,phi_13, phi_20,phi_21,phi_22,phi_23, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
+
+# And then plot it
+#g_plot_neural_2_inputs_2_outputs(nn_result)
+ggplot(nn_result, aes(x = x1, y = x2, z = y1)) +
+  xlim(0, 10) +
+  ylim(0, 10) +
+  geom_contour_filled(bins = 20) +
+  labs(
+    title = "Network output, y1",
+    x = "x1",
+    y = "x2",
+    fill = ""
+  ) +
+  theme_minimal()
+  
+ggplot(nn_result, aes(x = x1, y = x2, z = y2)) +
+  xlim(0, 10) +
+  ylim(0, 10) +
+  geom_contour_filled(bins = 20) +
+  labs(
+    title = "Network output, y2",
+    x = "x1",
+    y = "x2",
+    fill = ""
+  ) +
+  theme_minimal()
 ```
