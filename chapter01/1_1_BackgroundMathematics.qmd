@@ -77,8 +77,7 @@ Now let's investigate a 2D linear function
 # but you don't have to change it
 draw_2D_function <- function(x1, x2, y) {
   filled.contour(x1, x2, y, color.palette = terrain.colors,
-                 plot.title = title(main = "Filled Contour Plot",
-                                    xlab = "X-axis", ylab = "Y-axis"))
+                 xlab = "x1", ylab = "x2")
 }
 ```
 
@@ -127,9 +126,8 @@ ggplot(df, aes(x = x, y = y, z = z)) +
 #  scale_fill_viridis_d() + # Using a viridis color scale for better perception
   scale_fill_viridis_d(name = "Z Value") +
   labs(
-    title = "Filled Contour Plot",
-    x = "X-axis",
-    y = "Y-axis",
+    x = "x1",
+    y = "x2",
     fill = ""
   )
 #  theme_minimal()

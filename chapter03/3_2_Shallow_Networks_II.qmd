@@ -1,0 +1,110 @@
+---
+title: "3.2 -- Shallow neural networks II"
+author: "CF Wang"
+date: "2025-11-30"
+format: html
+---
+
+```{4}
+#| label: setup
+#| echo: true
+#| fig-width: 8
+#| fig-height: 6
+#| out-width: 80%
+#| fig-align: center
+```
+
+```{r}
+#| echo: false
+library(ggplot2)
+library(patchwork)
+```
+
+```{r}
+#| label: plot 2D neural network
+# Code to draw 2D function -- read it so you know what is going on, but you don't have to change it
+draw_2D_function <- function(x1, x2, y, title, add = FALSE) {
+  y_output <- matrix(y, ncol = length(x1))
+  filled.contour(x1, x2, y_output, color.palette = terrain.colors, add = add,
+                 plot.title = title(main = title,
+                                    xlab = "x1", ylab = "x2"))
+}
+
+# Plot the shallow neural network.  We'll assume input in is range [0,10],[0,10] and output [-10,10]
+plot_neural_2_inputs <- function(x1, x2, nn_result) {
+  plot.new()
+  par(mar=c(1,1,1,1))
+  par(mfrow = c(3, 3))
+  draw_2D_function(x1, x2, nn_result$pre_1, "Preactivation")
+  draw_2D_function(x1, x2, nn_result$pre_2, "Preactivation")
+  draw_2D_function(x1, x2, nn_result$pre_3, "Preactivation")
+  draw_2D_function(x1, x2, nn_result$act_1, "Activation")
+  draw_2D_function(x1, x2, nn_result$act_2, "Activation")
+  draw_2D_function(x1, x2, nn_result$act_3, "Activation")
+  draw_2D_function(x1, x2, nn_result$w_act_1, "Weighted Act")
+  draw_2D_function(x1, x2, nn_result$w_act_2, "Weighted Act")
+  draw_2D_function(x1, x2, nn_result$w_act_3, "Weighted Act")
+    
+  par(mfrow = c(1, 1))
+  draw_2D_function(x1, x2, nn_result$y, "Network output, y")
+}
+```
+
+```{r}
+#| label: ReLU
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+```
+
+```{r}
+#| label: shallow_2_1_3
+# Define a shallow neural network with, two input, one output, and three hidden units
+shallow_2_1_3 <- function(x1, x2, activation_fn, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32) {
+  df_nn <- expand.grid(x1 = x1, x2 = x2)
+  # TODO Replace the lines below to compute the three initial linear functions
+  # (figure 3.8a-c) from the theta parameters.  These are the preactivations
+  df_nn$pre_1 <- theta_10 + theta_11 * df_nn$x1 + theta_12 * df_nn$x2
+  df_nn$pre_2 <- theta_20 + theta_21 * df_nn$x1 + theta_22 * df_nn$x2
+  df_nn$pre_3 <- theta_30 + theta_31 * df_nn$x1 + theta_32 * df_nn$x2
+
+  # Pass these through the ReLU function to compute the activations as in
+  # figure 3.8 d-f
+  df_nn$act_1 <- activation_fn(df_nn$pre_1)
+  df_nn$act_2 <- activation_fn(df_nn$pre_2)
+  df_nn$act_3 <- activation_fn(df_nn$pre_3)
+
+  # TODO Replace the code below to weight the activations using phi1, phi2 and phi3
+  # To create the equivalent of figure 3.8 g-i
+  df_nn$w_act_1 <- phi_1 * df_nn$act_1
+  df_nn$w_act_2 <- phi_2 * df_nn$act_2
+  df_nn$w_act_3 <- phi_3 * df_nn$act_3
+
+  # TODO Replace the code below to combing the weighted activations and add
+  # phi_0 to create the output as in figure 3.8j
+  df_nn$y <- phi_0 + df_nn$w_act_1 + df_nn$w_act_2 + df_nn$w_act_3
+
+  # Return everything we have calculated
+  return(df_nn)
+}
+```
+
+```{r}
+#| label: run neural network
+# Now lets define some parameters and run the neural network
+theta_10 <- -4.0; theta_11 <-  0.9; theta_12 <-  0.0
+theta_20 <-  5.0; theta_21 <- -0.9; theta_22 <- -0.5
+theta_30 <- -7;   theta_31 <-  0.5; theta_32 <-  0.9
+phi_0 <- 0.0; phi_1 <- -2.0; phi_2 <- 2.0; phi_3 <- 1.5
+
+x1 = seq(0.0, 10.0, 0.1)
+x2 = seq(0.0, 10.0, 0.1)
+# x1, x2 = np.meshgrid(x1, x2)  # https://www.geeksforgeeks.org/numpy-meshgrid-function/
+
+# We run the neural network for each of these input values
+nn_result = shallow_2_1_3(x1, x2, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
+
+# And then plot it
+plot_neural_2_inputs(x1, x2, nn_result)
+```
