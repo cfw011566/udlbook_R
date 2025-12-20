@@ -72,7 +72,7 @@ shallow_1_1_3 <- function(x, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10
   # figure 3.3 d-f
   act_1 <- activation_fn(pre_1)
   act_2 <- activation_fn(pre_2)
-  act_3 = activation_fn(pre_3)
+  act_3 <- activation_fn(pre_3)
 
   # TODO Replace the code below to weight the activations using phi1, phi2 and phi3
   # To create the equivalent of figure 3.3 g-i

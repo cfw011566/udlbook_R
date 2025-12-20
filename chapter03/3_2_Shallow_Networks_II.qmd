@@ -5,7 +5,7 @@ date: "2025-11-30"
 format: html
 ---
 
-```{4}
+```{r}
 #| label: setup
 #| echo: true
 #| fig-width: 8
