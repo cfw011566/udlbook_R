@@ -1,0 +1,266 @@
+---
+title: "3.4 -- Activation Functions"
+author: "CF Wang"
+date: "2025-12-22"
+format: html
+---
+
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 8
+#| fig-height: 6
+#| out-width: 80%
+#| fig-align: center
+```
+
+```{r}
+#| label: dependent library
+#| echo: false
+library(ggplot2)
+```
+
+```{r}
+#| label: plot neural
+# Plot the shallow neural network.  We'll assume input in is range [0,1] and output [-1,1]
+# If the plot_all flag is set to true, then we'll plot all the intermediate stages as in Figure 3.3
+plot_neural <- function(x, nn_result, plot_all = FALSE, x_data = NULL, y_data = NULL) {
+
+  # Plot intermediate plots if flag set
+  if (plot_all) {
+    par(mfrow = c(3, 3))
+    
+    plot(x, nn_result$pre1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Preactivation", col = "red")
+    plot(x, nn_result$pre2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Preactivation", col = "blue")
+    plot(x, nn_result$pre3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Preactivation", col = "green")
+    
+    plot(x, nn_result$act1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Activation", col = "red")
+    plot(x, nn_result$act2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Activation", col = "blue")
+    plot(x, nn_result$act3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), ylab = "Activation", col = "green")
+    
+    plot(x, nn_result$wact1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "red")
+    plot(x, nn_result$wact2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "blue")
+    plot(x, nn_result$wact3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "green")
+  }
+  
+  par(mfrow = c(1, 1))
+  plot(x, nn_result$y, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "Input, x", ylab = "Output, y", lwd = 2, col = "skyblue")
+  if (!is.null(x_data)) {
+    points(x_data, y_data, pch = 19, cex = 1.5, col = "purple")
+  }
+}
+```
+
+```{r}
+#| label: shallow_1_1_3
+# Define a shallow neural network with, one input, one output, and three hidden units
+shallow_1_1_3 <- function(x, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31) {
+  # figure 3.3 a-c
+  pre_1 <- theta_10 + theta_11 * x
+  pre_2 <- theta_20 + theta_21 * x
+  pre_3 <- theta_30 + theta_31 * x
+
+  # figure 3.3 d-f
+  act_1 <- activation_fn(pre_1)
+  act_2 <- activation_fn(pre_2)
+  act_3 <- activation_fn(pre_3)
+
+  # figure 3.3 g-i
+  w_act_1 <- phi_1 * act_1
+  w_act_2 <- phi_2 * act_2
+  w_act_3 <- phi_3 * act_3
+
+  # figure 3.3 j
+  y <- phi_0 + w_act_1 + w_act_2 + w_act_3
+
+  # Return everything we have calculated
+  return(data.frame(x = x, y = y, pre1 = pre_1, pre2 = pre_2, pre3 = pre_3, act1 = act_1, act2 = act_2, act3 = act_3, wact1 = w_act_1, wact2 = w_act_2, wact3 = w_act_3))
+}
+```
+
+```{r}
+#| label: ReLU
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+```
+
+First, let's run the network with a ReLU functions
+
+```{r}
+#| label: run neural network with ReLU
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+
+# Now lets define some parameters and run the neural network
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <-  2.0
+theta_30 <- -0.5; theta_31 <-  0.65
+phi_0 <- -0.3; phi_1 <- 2.0; phi_2 <- -1.0; phi_3 <- 7.0
+
+# Define a range of input values
+x <- seq(0, 1, 0.01)
+
+# We run the neural network for each of these input values
+# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
+nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE)
+```
+
+# Sigmoid activation function
+
+The ReLU isn't the only kind of activation function. For a long time, people used sigmoid functions. A logistic sigmoid function is defined by the equation
+$$
+f[z] = \frac{1}{1+exp[-10z]} \tag{1}
+$$ 
+(Note that the factor of 10 is not standard -- but it allow us to plot on the same axes as the ReLU examples)
+
+```{r}
+#| label: sigmoid
+# Define the sigmoid function
+sigmoid <- function(preactivation) {
+  # TODO write code to implement the sigmoid function and compute the activation at the
+  # hidden unit from the preactivation.  Use the np.exp() function.
+  activation = 1.0 / (1.0 + exp(-10.0 * preactivation));
+  return(activation)
+}
+
+# Make an array of inputs
+z <- seq(-1, 1, 0.01)
+sig_z <- sigmoid(z)
+
+# Plot the sigmoid function
+plot(0, xlim = c(-1, 1), ylim = c(0, 1),
+     xlab = expression(paste("z")),
+     ylab = expression(paste("sig[", z, "]")),
+     axes = TRUE, type = "n")
+lines(z, sig_z, lwd = 2, col = "red")
+```
+
+Let's see what happens when we use this activation function in a neural network
+
+```{r}
+#| label: run neural network with sigmoid
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+
+# Now lets define some parameters and run the neural network
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <-  2.0
+theta_30 <- -0.5; theta_31 <-  0.65
+phi_0 <- 0.3; phi_1 <- 0.5; phi_2 <- -1.0; phi_3 <- 0.9
+
+# Define a range of input values
+x <- seq(0, 1, 0.01)
+
+# We run the neural network for each of these input values
+# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
+nn_result = shallow_1_1_3(x, sigmoid, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE)
+```
+
+You probably notice that this gives nice smooth curves. So why don't we use this? Aha... it's not obvious right now, but we will get to it when we learn to fit models.
+
+# Heaviside activation function
+
+The Heaviside function is defined as:
+
+$$
+heaviside(z) = \begin{cases} 0 & z < 0 \\ 1 & z \ge 0 \end{cases} \tag{2}
+$$
+
+```{r}
+#| label: Heaviside
+heaviside <- function(preactivation) {
+  ifelse(preactivation < 0, 0, 1)
+}
+```
+
+```{r}
+#| label: Test Heaviside
+#| fig-width: 6
+#| fig-height: 6
+#| echo: false
+z <- seq(-1, 1, 0.01)
+heav_z <- heaviside(z)
+
+plot(0, xlim = c(-1, 1), ylim = c(-2, 2),
+     xlab = expression(paste("z")),
+     ylab = expression(paste("heaviside[", z, "]")),
+     axes = TRUE, type = "n")
+lines(z, heav_z, lwd = 2, col = "red")
+```
+
+```{r}
+#| label: run neural network with heaviside
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+
+# Now lets define some parameters and run the neural network
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <-  2.0
+theta_30 <- -0.5; theta_31 <-  0.65
+phi_0 <- 0.3; phi_1 <- 0.5; phi_2 <- -1.0; phi_3 <- 0.9
+
+# Define a range of input values
+x <- seq(0, 1, 0.01)
+
+# We run the neural network for each of these input values
+# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
+nn_result = shallow_1_1_3(x, heaviside, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE)
+```
+
+Linear activation functions
+Neural networks don't work if the activation function is linear. For example, consider what would happen if the activation function was:
+$$
+lin[z] = a + b z \tag{3}
+$$
+```{r}
+#| label: linear function
+#| fig-width: 8
+#| fig-height: 8
+#| fig-asp: 1
+# Define the linear activation function
+lin <- function(preactivation) {
+  a <- 0.5
+  b <- -0.4 
+  # Compute linear function
+  activation = a+b * preactivation
+  # Return
+  return(activation)
+}
+
+# TODO
+# 1. The linear activation function above just returns the input: (0+1*z) = z
+# Before running the code Make a prediction about what the ten panels of the drawing will look like
+# Now run the code below to see if you were right. What family of functions can this represent?
+
+# 2. What happens if you change the parameters (a,b) to different values?
+# Try a=0.5, b=-0.4 Don't forget to run the cell again to update the function
+
+theta_10 <-  0.3; theta_11 <- -1.0
+theta_20 <- -1.0; theta_21 <-  2.0
+theta_30 <- -0.5; theta_31 <-  0.65
+phi_0 <- 0.3; phi_1 <- 0.5; phi_2 <- -1.0; phi_3 <- 0.9
+
+x <- seq(0, 1, 0.01)
+
+# We run the neural network for each of these input values
+# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
+nn_result = shallow_1_1_3(x, lin, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+
+# And then plot it
+plot_neural(x, nn_result, plot_all = TRUE)
+```
