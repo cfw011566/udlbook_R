@@ -86,20 +86,20 @@ plot_neural_two_layers <- function (x, y, layer2_pre_1, layer2_pre_2, layer2_pre
   # Plot intermediate plots if flag set
   par(mfrow = c(3, 3))
     
-  plot(x, layer2_pre_1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[10]+psi[11]*h[1]+psi[12]*h[2]+psi[13]*h[3]), col = "red")
-  plot(x, layer2_pre_2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[20]+psi[21]*h[1]+psi[22]*h[2]+psi[23]*h[3]), col = "red")
-  plot(x, layer2_pre_3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[30]+psi[31]*h[1]+psi[32]*h[2]+psi[33]*h[3]), col = "red")
+  plot(x, layer2_pre_1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[10]+psi[11]*h[1]+psi[12]*h[2]+psi[13]*h[3]), las = 1, col = "red")
+  plot(x, layer2_pre_2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[20]+psi[21]*h[1]+psi[22]*h[2]+psi[23]*h[3]), las = 1, col = "blue")
+  plot(x, layer2_pre_3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[30]+psi[31]*h[1]+psi[32]*h[2]+psi[33]*h[3]), las = 1, col = "green")
     
-    plot(x, h1_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[1]*"'"), col = "red")
-    plot(x, h2_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[2]*"'"), col = "blue")
-    plot(x, h3_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[3]*"'"), col = "green")
+    plot(x, h1_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[1]*"'"), las = 1, col = "red")
+    plot(x, h2_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[2]*"'"), las = 1, col = "blue")
+    plot(x, h3_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[3]*"'"), las = 1, col = "green")
     
-    plot(x, phi1_h1_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi1[1]*h[1]*"'"), col = "red")
-    plot(x, phi2_h2_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi[2]*h[2]*"'"), col = "blue")
-    plot(x, phi3_h3_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = "phi3_h3_prime", col = "green")
+    plot(x, phi1_h1_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi1[1]*h[1]*"'"), las = 1, col = "red")
+    plot(x, phi2_h2_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi[2]*h[2]*"'"), las = 1, col = "blue")
+    plot(x, phi3_h3_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi[3]*h[3]*"'"), las = 1, col = "green")
   
   par(mfrow = c(1, 1))
-  plot(x, y, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression("Output, "*y), lwd = 2, col = "skyblue")
+  plot(x, y, type = "l", las = 1, xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression("Output, "*y), las = 1, lwd = 2, col = "skyblue3")
 }
 ```
 
