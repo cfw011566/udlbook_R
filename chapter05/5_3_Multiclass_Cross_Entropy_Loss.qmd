@@ -1,0 +1,324 @@
+---
+title: "5.3 Multiclass Cross-Entropy Loss"
+author: "CF Wang"
+date: "2026-01-01"
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 6
+#| fig-height: 6
+#| fig-align: center
+```
+
+```{r}
+#| label: load library
+#| echo: false
+library(ggplot2)
+```
+
+```{r}
+#| label: ReLU and shallow neural network
+
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+
+# Define a shallow neural network
+shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
+  # Make sure that input data is (1 x n_data) array
+  n_data <- length(x)
+  x = matrix(x, nrow = 1, ncol = n_data)
+  
+  # This runs the network for ALL of the inputs, x at once so we can draw graph
+  # h1 = ReLU(beta_0 %*% matrix(1, nrow = 1, ncol = n_data) + omega_0 %*% x)
+  # y = beta_1 %*% matrix(1, nrow = 1, ncol = n_data) + omega_1 %*% h1
+  # R vector is column oriental
+  h1 <- ReLU(c(beta_0) + omega_0 %*% x)
+  model_out <- c(beta_1) + omega_1 %*% h1
+}
+```
+
+```{r}
+#| label: default parameters
+
+# Get parameters for model -- we can call this function to easily reset them
+get_parameters <- function() {
+  # And we'll create a network that approximately fits it
+  beta_0 <- matrix(0, nrow = 3, ncol = 1)  # formerly theta_x0
+  omega_0 <- matrix(0, nrow = 3, ncol = 1) # formerly theta_x1
+  beta_1 <- matrix(0, nrow = 3, ncol = 1)  # NOTE -- there are three outputs now (one for each class, so three output biases)
+  omega_1 <- matrix(0, nrow = 3, ncol = 3) # NOTE -- there are three outputs now (one for each class, so nine output weights, connecting 3 hidden units to 3 outputs)
+
+  beta_0[1,1] <- 0.3; beta_0[2,1] <- -1.0; beta_0[3,1] <- -0.5
+  omega_0[1,1] <- -1.0; omega_0[2,1] <- 1.8; omega_0[3,1] <- 0.65
+  beta_1[1,1] <- 2; beta_1[2,1] <- -2; beta_1[3,1] <- 0.0
+  omega_1[1,1] <- -24.0; omega_1[1,2] <- -8.0; omega_1[1,3] <- 50.0
+  omega_1[2,1] <- -2.0; omega_1[2,2] <- 8.0; omega_1[2,3] <- -30.0
+  omega_1[3,1] <- 16.0; omega_1[3,2] <- -8.0; omega_1[3,3] <- -8
+  
+  list(beta_0 = beta_0, omega_0 = omega_0, beta_1 = beta_1, omega_1 = omega_1)
+}
+```
+
+```{r}
+#| label: plot function
+
+# Utility function for plotting data
+plot_multiclass_classification <- function(x_model, out_model, lambda_model, x_data = NULL, y_data = NULL, title = NULL) {
+  # Make sure model data are 1D arrays
+  n_data <- length(x_model)
+  n_class <- 3
+  # x_model = np.squeeze(x_model)
+  out_model <- matrix(out_model, nrow = n_class, ncol = n_data)
+  lambda_model <- matrix(lambda_model, nrow = n_class, ncol = n_data)
+
+  par(mfcol = c(1,2), las = 1, xaxs = "i", yaxs = "i")
+  plot(0, type = "n", xlim = c(0, 1), ylim = c(-4, 4),
+       # xaxp = c(0, 1, 8),
+       yaxp = c(-4, 4, 8),
+       xlab = expression("Input, "*x),
+       ylab = "Model output"
+  )
+  lines(x_model, out_model[1,], lwd = 2, col = "red3")
+  lines(x_model, out_model[2,], lwd = 2, col = "green3")
+  lines(x_model, out_model[3,], lwd = 2, col = "blue3")
+
+  if (!is.null(title)) {
+    title(title)
+  }
+  
+  plot(0, type = "n", xlim = c(0, 1), ylim = c(-0.1, 1.05),
+       xlab = expression("Input, "*x),
+       ylab = expression(lambda*" or Pr(y=1|x)")
+  )
+  lines(x_model, lambda_model[1,], lwd = 2, col = "red3")
+  lines(x_model, lambda_model[2,], lwd = 2, col = "green3")
+  lines(x_model, lambda_model[3,], lwd = 2, col = "blue3")
+  if (!is.null(title)) {
+    title(title)
+  }
+  if (!is.null(x_data)) {
+    custom_colors <- c("red3", "green3", "blue3")
+    point_colors <- custom_colors[y_data+1]
+    y_coord <- rep(-0.05, length(y_data))
+    points(x_data, y_coord, pch = 19, col = point_colors)
+#    for (i in 1:length(x_data)) {
+#      if (y_data[i] == 0) {
+#        points(x_data[i], -0.05, pch = 19, col = "red3")
+#      }
+#      if (y_data[i] == 1) {
+#        points(x_data[i], -0.05, pch = 19, col = "green3")
+#      }
+#      if (y_data[i] == 2) {
+#        points(x_data[i], -0.05, pch = 19, col = "blue3")
+#      }
+#    }
+  }
+}
+```
+
+# Multiclass classification
+
+For multiclass classification, the network must predict the probability of $K$ classes, using $K$ outputs. However, these probability must be non-negative and sum to one, and the network outputs can take arbitrary values. Hence, we pass the outputs through a softmax function which maps $K$ arbitrary values to $K$ non-negative values that sum to one.
+
+```{r}
+#| label: softmax
+
+# Softmax function that maps a vector of arbitrary values to a vector of values that are positive and sum to one.
+softmax <- function(model_out) {
+  # This operation has to be done separately for every column of the input
+  # Compute exponentials of all the elements
+  # TODO: compute the softmax function (eq 5.22)
+  # Replace this skeleton code
+
+  # Compute the exponential of the model outputs
+  exp_model_out <- exp(model_out)
+  # Compute the sum of the exponentials across classes for each data point
+  sum_exp_model_out <- colSums(exp_model_out)
+  # Normalize the exponentials
+  softmax_model_out <- t(t(exp_model_out) / sum_exp_model_out)
+}
+```
+
+```{r}
+#| label: multiclass classification
+#| fig-width: 8
+#| fig-height: 4
+
+# Let's create some 1D training data
+x_train <- c(0.09291784, 0.46809093, 0.93089486, 0.67612654, 0.73441752, 0.86847339, 0.49873225, 0.51083168, 0.18343972, 0.99380898, 0.27840809, 0.38028817, 0.12055708, 0.56715537, 0.92005746, 0.77072270, 0.85278176, 0.05315950, 0.87168699, 0.58858043)
+y_train <- c(2, 0, 1, 2, 1, 0, 0, 2, 2, 0, 2, 0, 2, 0, 1, 2, 1, 2, 1, 0)
+
+# Get parameters for the model
+params <- get_parameters()
+
+# Define a range of input values
+x_model <- seq(0, 1, 0.01)
+# Run the model to get values to plot and plot it.
+model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+lambda_model <- softmax(model_out)
+plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train)
+```
+
+The left is model output and the right is the model output after the softmax has been applied, so it now lies in the range [0,1] and represents the probability, that y=0 (red), 1 (green) and 2 (blue). The dots at the bottom show the training data with the same color scheme. So we want the red curve to be high where there are red dots, the green curve to be high where there are green dots, and the blue curve to be high where there are blue dots We'll compute the likelihood and the negative log likelihood.
+
+```{r}
+#| label: categorical distribution
+
+# Return probability under categorical distribution for observed class y
+# Just take value from row k of lambda param where y =k,
+categorical_distribution <- function(y, lambda_param) {
+  cat_prob <- c()
+  for (i in 1:nrow(lambda_param)) {
+    cat_prob <- c(cat_prob, lambda_param[i,][y+1 == i])
+  }
+  cat_prob
+}
+
+# Here are three examples
+test_matrix <- matrix(c(0.2, 0.5, 0.3), nrow = 3, ncol = 1)
+print(categorical_distribution(c(0), test_matrix))
+print(categorical_distribution(c(1), test_matrix))
+print(categorical_distribution(c(2), test_matrix))
+```
+
+Now let's compute the likelihood using this function
+
+```{r}
+#| label: likelihood
+
+# Return the likelihood of all of the data under the model
+compute_likelihood <- function(y_train, lambda_param) {
+  # TODO -- compute the likelihood of the data -- the product of the categorical probabilities for each data point
+  # Top line of equation 5.3 in the notes
+  # You will need np.prod() and the categorical_distribution function you used above
+  # Replace the line below
+  likelihood <- prod(categorical_distribution(y_train, lambda_param))
+}
+
+# Let's test this
+params <- get_parameters()
+# Use our neural network to predict the parameters of the categorical distribution
+model_out <- shallow_nn(x_train, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+lambda_train <- softmax(model_out)
+# Compute the likelihood
+likelihood <- compute_likelihood(y_train, lambda_train)
+# Let's double check we get the right answer before proceeding
+sprintf("Correct answer = %9.9f, Your answer = %9.9f", 0.000000041, likelihood)
+```
+
+You can see that this gives a very small answer, even for this small 1D dataset, and with the model fitting quite well. This is because it is the product of several probabilities, which are all quite small themselves. This will get out of hand pretty quickly with real datasets -- the likelihood will get so small that we can't represent it with normal finite-precision math
+
+This is why we use negative log likelihood
+
+```{r}
+#| label: negative log likelihood
+
+# Return the negative log likelihood of the data under the model
+compute_negative_log_likelihood <- function(y_train, lambda_param) {
+  # TODO -- compute the negative log likelihood of the data -- don't use the likelihood function above -- compute the negative sum of the log probabilities
+  # You will need np.sum(), np.log()
+  # Replace the line below
+  nll <- sum(-log(categorical_distribution(y_train, lambda_param)))
+}
+
+# Let's test this
+params <- get_parameters()
+# Use our neural network to predict the parameters of the categorical distribution
+model_out <- shallow_nn(x_train, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+# Pass the outputs through the softmax function
+lambda_train <- softmax(model_out)
+# Compute the negative log likelihood
+nll <- compute_negative_log_likelihood(y_train, lambda_train)
+# Let's double check we get the right answer before proceeding
+sprintf("Correct answer = %9.9f, Your answer = %9.9f", 17.015457867, nll)
+```
+
+Now let's investigate finding the maximum likelihood / minimum negative log likelihood solution. For simplicity, we'll assume that all the parameters are fixed except one and look at how the likelihood and negative log likelihood change as we manipulate the last parameter. We'll start with overall y_offset, $\beta_1$ (formerly $\phi_0$)
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+
+# Define a range of values for the parameter
+beta_1_vals <- seq(-2, 6.0, 0.1)
+# Create some arrays to store the likelihoods, negative log likelihoods
+likelihoods <- rep(0, length(beta_1_vals))
+nlls <- rep(0, length(beta_1_vals))
+
+# Initialise the parameters
+params <- get_parameters()
+for (count in 1:length(beta_1_vals)) {
+  # Set the value for the parameter
+  params$beta_1[1,1] <- beta_1_vals[count]
+  # Run the network with new parameters
+  model_out <- shallow_nn(x_train, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+  lambda_train <- softmax(model_out)
+  # Compute and store the two values
+  likelihoods[count] <- compute_likelihood(y_train,lambda_train)
+  nlls[count] <- compute_negative_log_likelihood(y_train, lambda_train)
+  # Draw the model for every 20th parameter setting
+  if ((count-1) %% 20 == 0) {
+    # Run the model to get values to plot and plot it.
+    model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+    lambda_model <- softmax(model_out)
+    plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1[1,1]=%3.3f", params$beta_1[1,1]))
+  }
+}
+```
+
+```{r}
+#| label: likelihood and negative log likelihood
+#| fig-width: 8
+#| fig-height: 6
+
+# Now let's plot the likelihood and negative log likelihood as a function of the value of the offset beta1
+#par(mfcol = c(1,2), las = 1)
+par(mar = c(5, 5, 4, 4) + 0.1, las = 1)
+likelihood_color <- "red3"
+nll_color <- "skyblue3"
+
+
+plot(beta_1_vals, likelihoods, type = "l", lwd = 2, col = likelihood_color,
+     axes = FALSE,
+     xlab = "beta_1[1,1]", ylab = "",
+     ylim = range(likelihoods))
+#axis(side = 1, #at = pretty(range(beta_1_vals)))
+axis(side = 1, at = seq(min(beta_1_vals), max(beta_1_vals, length.out = 8)))
+
+mtext("likelihood", las = 0, side = 2, line = 4, col = likelihood_color)
+axis(side = 2, at = pretty(range(likelihoods)), col.axis = likelihood_color, col.ticks = likelihood_color)
+
+par(new = TRUE)
+plot(beta_1_vals, nlls, type = "l", lwd = 2, col = nll_color,
+     axes = FALSE, xlab = "", ylab = "",
+     ylim = range(nlls))
+axis(side = 4, at = pretty(range(nlls)), col.axis = nll_color, col.ticks = nll_color)
+mtext("negative log likelihood", las = 0, side = 4, line = 2, col = nll_color)
+
+abline(v = beta_1_vals[which.max(likelihoods)], lty = 3, col = nll_color)
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+
+# Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood solution
+# Let's check that:
+sprintf("Maximum likelihood = %f, at beta_1=%3.3f", likelihoods[which.max(likelihoods)], beta_1_vals[which.max(likelihoods)])
+sprintf("Minimum negative log likelihood = %f, at beta_1=%3.3f", nlls[which.min(nlls)], beta_1_vals[which.min(nlls)])
+
+# Plot the best model
+params$beta_1[1,1] <- beta_1_vals[which.min(nlls)]
+model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+lambda_model <- softmax(model_out)
+plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1[0,0]=%3.3f", params$beta_1[1,1]))
+```
+
+They both give the same answer. But you can see from the likelihood above that the likelihood is very small unless the parameters are almost correct. So in practice, we would work with the negative log likelihood.
+
+Again, to fit the full neural model we would vary all of the 16 parameters of the network in the $\beta_0, \Omega_0, \beta_1, \Omega_1$ until we find the combination that have the maximum likelihood / minimum negative log likelihood.
