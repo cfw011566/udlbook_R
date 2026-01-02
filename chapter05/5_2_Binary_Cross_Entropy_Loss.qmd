@@ -31,7 +31,7 @@ ReLU <- function(preactivation) {
 shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
   # Make sure that input data is (1 x n_data) array
   n_data <- length(x)
-  x = matrix(x, nrow = 1, ncol = n_data)
+  x <- matrix(x, nrow = 1, ncol = n_data)
   
   # This runs the network for ALL of the inputs, x at once so we can draw graph
   # h1 = ReLU(beta_0 %*% matrix(1, nrow = 1, ncol = n_data) + omega_0 %*% x)
@@ -104,7 +104,7 @@ In binary classification tasks, the network predicts the probability of the outp
 sigmoid <- function(model_out) {
   # TODO -- implement the logistic sigmoid function from equation 5.18
   # Replace this line:
-  sig_model_out <- 1.0 / (1.0 + exp(-model_out))
+  1.0 / (1.0 + exp(-model_out))
 }
 ```
 
@@ -138,7 +138,7 @@ bernoulli_distribution <- function(y, lambda_param) {
   # TODO-- write in the equation for the Bernoulli distribution
   # Equation 5.17 from the notes (you will need np.power)
   # Replace the line below
-  prob <- (1.0 - lambda_param)^(1.0 - y) * lambda_param^y
+  (1.0 - lambda_param)^(1.0 - y) * lambda_param^y
 }
 
 # Let's double check we get the right answer before proceeding
@@ -156,7 +156,7 @@ compute_likelihood <- function(y_train, lambda_param) {
   # Top line of equation 5.3 in the notes
   # You will need np.prod() and the bernoulli_distribution function you used above
   # Replace the line below
-  likelihood <- prod(bernoulli_distribution(y_train, lambda_param))
+  prod(bernoulli_distribution(y_train, lambda_param))
 }
 
 # Let's test this
@@ -182,7 +182,7 @@ compute_negative_log_likelihood <- function(y_train, lambda_param) {
   # TODO -- compute the likelihood of the data -- don't use the likelihood function above -- compute the negative sum of the log probabilities
   # You will need np.sum(), np.log()
   # Replace the line below
-  nll <- sum(-log(bernoulli_distribution(y_train, lambda_param)))
+  sum(-log(bernoulli_distribution(y_train, lambda_param)))
 }
 
 # Let's test this
@@ -244,7 +244,7 @@ nll_color <- "skyblue3"
 
 plot(beta_1_vals, likelihoods, type = "l", lwd = 2, col = likelihood_color,
 #     axes = FALSE,
-     xlab = "beta_1[0]", ylab = "",
+     xlab = "beta_1", ylab = "",
      ylim = range(likelihoods))
 #axis(side = 1, at = pretty(range(beta_1_vals)))
 
@@ -275,7 +275,7 @@ sprintf("Minimum negative log likelihood = %f, at beta_1=%3.3f", nlls[which.min(
 params$beta_1[1,1] <- beta_1_vals[which.min(nlls)]
 model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
 lambda_model <- sigmoid(model_out)
-plot_binary_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta_1[1]=%3.3f", params$beta_1[1,1]))
+plot_binary_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta_1=%3.3f", params$beta_1[1,1]))
 ```
 
 They both give the same answer. But you can see from the likelihood above that the likelihood is very small unless the parameters are almost correct. So in practice, we would work with the negative log likelihood.

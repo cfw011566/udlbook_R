@@ -31,7 +31,7 @@ ReLU <- function(preactivation) {
 shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
   # Make sure that input data is (1 x n_data) array
   n_data <- length(x)
-  x = matrix(x, nrow = 1, ncol = n_data)
+  x <- matrix(x, nrow = 1, ncol = n_data)
   
   # This runs the network for ALL of the inputs, x at once so we can draw graph
   # h1 = ReLU(beta_0 %*% matrix(1, nrow = 1, ncol = n_data) + omega_0 %*% x)
@@ -266,7 +266,7 @@ for (count in 1:length(beta_1_vals)) {
     # Run the model to get values to plot and plot it.
     model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
     lambda_model <- softmax(model_out)
-    plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1[1,1]=%3.3f", params$beta_1[1,1]))
+    plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1=%3.3f", params$beta_1[1,1]))
   }
 }
 ```
@@ -309,14 +309,14 @@ abline(v = beta_1_vals[which.max(likelihoods)], lty = 3, col = nll_color)
 
 # Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood solution
 # Let's check that:
-sprintf("Maximum likelihood = %f, at beta_1=%3.3f", likelihoods[which.max(likelihoods)], beta_1_vals[which.max(likelihoods)])
-sprintf("Minimum negative log likelihood = %f, at beta_1=%3.3f", nlls[which.min(nlls)], beta_1_vals[which.min(nlls)])
+sprintf("Maximum likelihood = %f, at beta_1 = %3.3f", likelihoods[which.max(likelihoods)], beta_1_vals[which.max(likelihoods)])
+sprintf("Minimum negative log likelihood = %f, at beta_1 = %3.3f", nlls[which.min(nlls)], beta_1_vals[which.min(nlls)])
 
 # Plot the best model
 params$beta_1[1,1] <- beta_1_vals[which.min(nlls)]
 model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
 lambda_model <- softmax(model_out)
-plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1[0,0]=%3.3f", params$beta_1[1,1]))
+plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1=%3.3f", params$beta_1[1,1]))
 ```
 
 They both give the same answer. But you can see from the likelihood above that the likelihood is very small unless the parameters are almost correct. So in practice, we would work with the negative log likelihood.

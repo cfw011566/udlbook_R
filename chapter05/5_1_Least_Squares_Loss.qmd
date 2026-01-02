@@ -31,7 +31,7 @@ ReLU <- function(preactivation) {
 shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
   # Make sure that input data is (1 x n_data) array
   n_data <- length(x)
-  x = matrix(x, nrow = 1, ncol = n_data)
+  x <- matrix(x, nrow = 1, ncol = n_data)
   
   # This runs the network for ALL of the inputs, x at once so we can draw graph
   # h1 = ReLU(beta_0 %*% matrix(1, nrow = 1, ncol = n_data) + omega_0 %*% x)
