@@ -20,6 +20,8 @@ library(ggplot2)
 ```
 
 ```{r}
+#| label: ReLU and shallow neural network
+
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
   ifelse(preactivation > 0, preactivation, 0)
@@ -32,14 +34,17 @@ shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
   x = matrix(x, nrow = 1, ncol = n_data)
   
   # This runs the network for ALL of the inputs, x at once so we can draw graph
-  # h1 <- ReLU(c(beta_0) + omega_0 %*% x)
-  # y <- c(beta_1) + omega_1 %*% h1
-  h1 = ReLU(beta_0 %*% matrix(1, nrow = 1, ncol = n_data) + omega_0 %*% x)
-  y = beta_1 %*% matrix(1, nrow = 1, ncol = n_data) + omega_1 %*% h1
+  # h1 = ReLU(beta_0 %*% matrix(1, nrow = 1, ncol = n_data) + omega_0 %*% x)
+  # y = beta_1 %*% matrix(1, nrow = 1, ncol = n_data) + omega_1 %*% h1
+  # R is column oriental so c(beta_0) converts to column vector and add to matrix
+  h1 <- ReLU(c(beta_0) + omega_0 %*% x)
+  y <- c(beta_1) + omega_1 %*% h1
 }
 ```
 
 ```{r}
+#| label: default parameters
+
 # Get parameters for model -- we can call this function to easily reset them
 get_parameters <- function() {
   # And we'll create a network that approximately fits it
@@ -58,9 +63,13 @@ get_parameters <- function() {
 ```
 
 ```{r}
+#| label: plot function
+
 # Utility function for plotting data
 plot_univariate_regression <- function(x_model, y_model, x_data = NULL, y_data = NULL, sigma_model = NULL, title = NULL) {
+  # no margin for plot
   par(xaxs = "i", yaxs = "i")
+  # draw axis and its label
   plot(0, type = "n", las = 1, xlim = c(0, 1), ylim = c(-1, 1),
        # xaxp = c(-1, 1, 8),
        yaxp = c(-1, 1, 8),
@@ -108,21 +117,25 @@ plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sig
 The blue line is the mean prediction of the model and the gray area represents plus/minus two standard deviations. This model fits okay, but could be improved. Let's compute the loss. We'll compute the the least squares error, the likelihood, the negative log likelihood.
 
 ```{r}
+#| label: normal distribution
+
 # Return probability under normal distribution
 normal_distribution <- function(y, mu, sigma) {
   # TODO-- write in the equation for the normal distribution
   # Equation 5.7 from the notes (you will need np.sqrt() and np.exp(), and math.pi)
   # Don't use the numpy version -- that's cheating!
+  # dnorm(y, mu, sigma)
   # Replace the line below
-  prob <- exp(-(y-mu)^2 / 2.0 / sigma^2) / sqrt(2*pi*sigma^2)
+  exp(-(y-mu)^2 / 2.0 / sigma^2) / sqrt(2*pi*sigma^2)
 }
      
 
 # Let's double check we get the right answer before proceeding
-sprintf("Correct answer = %3.3f, Your answer = %3.3f", 0.119, normal_distribution(1,-1,2.3))
+sprintf("Correct answer = %3.3f, Your answer = %3.3f", 0.119, normal_distribution(1, -1, 2.3))
 ```
 
 ```{r}
+#| label: normal distribution plot
 #| fig-width: 6
 #| fig-height: 6
 
@@ -150,13 +163,15 @@ lines(y_gauss, gauss_prob, col = "skyblue3", lwd = 2)
 Now let's compute the likelihood using this function
 
 ```{r}
+#| label: likelihood
+
 # Return the likelihood of all of the data under the model
 compute_likelihood <- function(y_train, mu, sigma) {
   # TODO -- compute the likelihood of the data -- the product of the normal probabilities for each data point
   # Top line of equation 5.3 in the notes
   # You will need np.prod() and the normal_distribution function you used above
   # Replace the line below
-  likelihood <- prod(normal_distribution(y_train, mu, sigma))
+  prod(normal_distribution(y_train, mu, sigma))
 }
 
 # Let's test this for a homoscedastic (constant sigma) model
@@ -185,7 +200,7 @@ compute_negative_log_likelihood <- function(y_train, mu, sigma) {
   # Equation 5.4 in the notes
   # You will need np.sum(), np.log()
   # Replace the line below
-  nll <- sum(-log(normal_distribution(y_train, mu, sigma)))
+  sum(-log(normal_distribution(y_train, mu, sigma)))
 }
      
 # Let's test this for a homoscedastic (constant sigma) model
@@ -203,12 +218,14 @@ sprintf("Correct answer = %9.9f, Your answer = %9.9f", 11.452419564, nll)
 For good measure, let's compute the sum of squares as well
 
 ```{r}
+#| label: squared distance
+
 # Return the squared distance between the observed data (y_train) and the prediction of the model (y_pred)
 compute_sum_of_squares <- function(y_train, y_pred) {
   # TODO -- compute the sum of squared distances between the training data and the model prediction
   # Eqn 5.10 in the notes.  Make sure that you understand this, and ask questions if you don't
   # Replace the line below
-  sum_of_squares = sum((y_train - y_pred)^2)
+  sum((y_train - y_pred)^2)
 }
      
 # Let's test this again
@@ -225,6 +242,7 @@ sprintf("Correct answer = %9.9f, Your answer = %9.9f", 2.020992572, sum_of_squar
 Now let's investigate finding the maximum likelihood / minimum negative log likelihood / least squares solution. For simplicity, we'll assume that all the parameters are correct except one and look at how the likelihood, negative log likelihood, and sum of squares change as we manipulate the last parameter. We'll start with overall y offset, beta_1 (formerly phi_0)
 
 ```{r}
+#| label: comparison for different beta_1
 #| fig-width: 6
 #| fig-height: 6
 
@@ -269,7 +287,7 @@ par(mar = c(5, 4, 4, 4) + 0.1, las = 1)
 
 plot(beta_1_vals, likelihoods, type = "l", lwd = 2, col = likelihood_color,
 #     axes = FALSE,
-     xlab = "beta_1[0]", ylab = "",
+     xlab = "beta_1", ylab = "",
      ylim = range(likelihoods))
 #axis(side = 1, at = pretty(range(beta_1_vals)))
 
@@ -287,25 +305,25 @@ abline(v = beta_1_vals[which.max(likelihoods)], lty = 3, col = nll_color)
 
 par(new = FALSE)
 plot(beta_1_vals, sum_squares, type = "l", lwd = 2, col = "skyblue3",
-     xlab = "beta_1[0]", ylab = "sum of squqares")
+     xlab = "beta_1", ylab = "sum of squqares")
 ```
 
 ```{r}
+#| label: best beta_1
 #| fig-width: 6
 #| fig-height: 6
 
 # Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood
 # and the least squares solutions
 # Let's check that:
-sprintf("Maximum likelihood = %3.3f, at beta_1=%3.3f", likelihoods[which.max(likelihoods)], beta_1_vals[which.max(likelihoods)])
-sprintf("Minimum negative log likelihood = %3.3f, at beta_1=%3.3f", nlls[which.min(nlls)], beta_1_vals[which.min(nlls)])
-sprintf("Least squares = %3.3f, at beta_1=%3.3f", sum_squares[which.min(sum_squares)], beta_1_vals[which.min(sum_squares)])
+sprintf("Maximum likelihood = %3.3f, at beta_1 = %3.3f", likelihoods[which.max(likelihoods)], beta_1_vals[which.max(likelihoods)])
+sprintf("Minimum negative log likelihood = %3.3f, at beta_1 = %3.3f", nlls[which.min(nlls)], beta_1_vals[which.min(nlls)])
+sprintf("Least squares = %3.3f, at beta_1 = %3.3f", sum_squares[which.min(sum_squares)], beta_1_vals[which.min(sum_squares)])
 
 # Plot the best model
 params$beta_1[1,1] = beta_1_vals[which.min(sum_squares)]
 y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
-title <- sprintf("beta1=%3.3f", params$beta_1[1,1])
-plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = title)
+plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("beta1=%3.3f", params$beta_1[1,1]))
 ```
 
 They all give the same answer. But you can see from the three plots above that the likelihood is very small unless the parameters are almost correct. So in practice, we would work with the negative log likelihood or the least squares.
@@ -313,6 +331,7 @@ They all give the same answer. But you can see from the three plots above that t
 Let's do the same thing with the standard deviation parameter of our network. This is not an output of the network (unless we choose to make that the case), but it still affects the likelihood.
 
 ```{r}
+#| label: comparison with different sigma
 #| fig-width: 6
 #| fig-height: 6
 
@@ -379,14 +398,15 @@ plot(sigma_vals, sum_squares, type = "l", lwd = 2, col = "skyblue3",
 ```
 
 ```{r}
+#| label: best sigma
 #| fig-width: 6
 #| fig-height: 6
 
 # Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood
 # The least squares solution does not depend on sigma, so it's just flat -- no use here.
 # Let's check that:
-sprintf("Maximum likelihood = %3.3f, at sigma=%3.3f", likelihoods[which.max(likelihoods)], sigma_vals[which.max(likelihoods)])
-sprintf("Minimum negative log likelihood = %3.3f, at sigma=%3.3f", nlls[which.min(nlls)],sigma_vals[which.min(nlls)])
+sprintf("Maximum likelihood = %3.3f, at sigma = %3.3f", likelihoods[which.max(likelihoods)], sigma_vals[which.max(likelihoods)])
+sprintf("Minimum negative log likelihood = %3.3f, at sigma = %3.3f", nlls[which.min(nlls)],sigma_vals[which.min(nlls)])
 # Plot the best model
 sigma <- sigma_vals[which.min(nlls)]
 y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
