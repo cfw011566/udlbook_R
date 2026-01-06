@@ -1,0 +1,277 @@
+---
+title: "6.2 Gradient Descent"
+author: "CF Wang"
+date: "2026-01-06"
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 6
+#| fig-height: 6
+#| fig-align: center
+```
+
+```{r}
+#| label: load library
+#| echo: false
+library(ggplot2)
+```
+
+This notebook recreates the gradient descent algorithm as shown in figure 6.1.
+
+```{r}
+# Let's create our training data 12 pairs {x_i, y_i}
+# We'll try to fit the straight line model to these data
+data <- matrix(c(0.03,0.19,0.34,0.46,0.78,0.81,1.08,1.18,1.39,1.60,1.65,1.90, 0.67,0.85,1.05,1.00,1.40,1.50,1.30,1.54,1.55,1.68,1.73,1.60), nrow = 2, byrow = TRUE)
+```
+
+```{r}
+# Let's define our model -- just a straight line with intercept phi[0] and slope phi[1]
+model <- function(phi, x) {
+  y_pred <- phi[1] + phi[2] * x
+}
+```
+
+```{r}
+# Draw model
+draw_model <- function(data, model, phi, title = NULL) {
+  x_model <- seq(0, 2, 0.01)
+  y_model <- model(phi, x_model)
+
+  par(las = 1, xaxs = "i", yaxs = "i")
+  plot(0, type = "n",
+       xlim = c(0, 2), ylim = c(0, 2),
+       xlab = "x", ylab = "y"
+       )
+  if (!is.null(title)) {
+    title(title)
+  }
+  lines(x_model, y_model, lwd = 2, col = "magenta3")
+  points(data[1,], data[2,], pch = 19, col = "blue3")
+}
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+
+# Initialize the parameters to some arbitrary values and draw the model
+# phi = np.zeros((2,1))
+# phi[0] = 0.6      # Intercept
+# phi[1] = -0.2      # Slope
+phi <- c(0.6, -0.2)
+draw_model(data, model, phi, "Initial parameters")
+```
+
+Now let's compute the sum of squares loss for the training data
+
+```{r}
+compute_loss <- function(data_x, data_y, model, phi) {
+  # TODO -- Write this function -- replace the line below
+  # First make model predictions from data x
+  # Then compute the squared difference between the predictions and true y values
+  # Then sum them all and return
+  pred_y <- model(phi, data_x)
+  loss <- sum((pred_y - data_y)^2)
+}
+```
+
+Let's just test that we got that right
+
+```{r}
+loss <- compute_loss(data[1,], data[2,], model, c(0.6, -0.2))
+sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 12.367)
+```
+
+Now let's plot the whole loss function
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+
+draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
+  phi0_range <- seq(0.0, 2.0, 0.02)
+  phi1_range <- seq(-1.0, 1.0, 0.02)
+  all_losses <- outer(phi0_range, phi1_range)
+  for (i in 1:length(phi0_range)) {
+    for (j in 1:length(phi1_range)) {
+      all_losses[i, j] = compute_loss(data[1,], data[2,], model, c(phi0_range[i], phi1_range[j]))
+    }
+  }
+# all_losses <- outer(phi0_range, phi1_range, function(p0, p1) { compute_loss(x, y, p0, p1)})
+
+  color_rgb <- col2rgb("skyblue") / 255
+  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.5, 1, length.out=10))
+  
+  filled.contour(
+    phi0_range,
+    phi1_range,
+    all_losses,
+    xlab = expression(paste("Intercept, ", phi[0])),
+    ylab = expression(paste("Slope, ", phi[1])),
+    plot.axes = {
+      axis(1)
+      axis(2)
+      points(phi_iters[1,], phi_iters[2,],
+             pch = 19, cex = 0.75,
+             col = points_color)
+      }
+  )
+}
+
+draw_loss_function(compute_loss, data, model)
+```
+
+Now let's compute the gradient vector for a given set of parameters:
+$$
+\frac{\partial L}{\partial\phi} =
+\begin{bmatrix}
+\frac{\partial L}{\partial\phi_0} \\
+\frac{\partial L}{\partial \phi_1}
+\end{bmatrix}
+$$
+
+```{r}
+# These are in the lecture slides and notes, but worth trying to calculate them yourself to
+# check that you get them right.  Write out the expression for the sum of squares loss and take the
+# derivative with respect to phi0 and phi1
+compute_gradient <- function(data_x, data_y, phi) {
+  # TODO -- write this function, replacing the lines below
+  dl_dphi0 <- 2 * sum(phi[1] + phi[2]*data_x - data_y)
+  dl_dphi1 <- 2 * sum(data_x*(phi[1] + phi[2]*data_x - data_y))
+
+  # Return the gradient
+  c(dl_dphi0,dl_dphi1)
+}
+```
+
+We can check we got this right using a trick known as **finite differences**. If we evaluate the function and then change one of the parameters by a very small amount and normalize by that amount, we get an approximation to the gradient, so:
+$$
+\begin{aligned}
+\frac{\partial L}{\partial\phi_0} &= \frac{L[\phi_0+\delta,\phi_1] - L[\phi_0,\phi_1]}{\delta} \\
+\frac{\partial L}{\partial\phi_1} &= \frac{L[\phi_0,\phi_1+\delta] - L[\phi_0,\phi_1]}{\delta}
+\end{aligned}
+$$
+We can't do this when there are many parameters; for a million parameters, we would have to evaluate the loss function one million plus one times, and usually computing the gradients directly is much more efficient.
+
+```{r}
+# Compute the gradient using your function
+gradient <- compute_gradient(data[1,], data[2,], phi)
+sprintf("Your gradients: (%3.3f,%3.3f)", gradient[1], gradient[2])
+# Approximate the gradients with finite differences
+delta <- 0.0001
+dl_dphi0_est <- (compute_loss(data[1,], data[2,], model, phi+c(delta, 0)) - compute_loss(data[1,], data[2,], model, phi)) / delta
+dl_dphi1_est <- (compute_loss(data[1,], data[2,], model, phi+c(0, delta)) -  compute_loss(data[1,], data[2,], model, phi)) / delta
+sprintf("Approx gradients: (%3.3f,%3.3f)", dl_dphi0_est, dl_dphi1_est)
+# There might be small differences in the last significant figure because finite gradients is an approximation
+```
+
+Now we are ready to perform gradient descent. We'll need to use our line search routine from notebook 6.1, which I've reproduced here plus the helper function loss_function_1D that maps the search along the negative gradient direction in 2D space to a 1D problem (distance along this direction)
+
+```{r}
+loss_function_1D <- function(dist_prop, data, model, phi_start, search_direction) {
+  # Return the loss after moving this far
+  compute_loss(data[1,], data[2,], model, phi_start - search_direction * dist_prop)
+}
+
+line_search <- function(data, model, phi, gradient, thresh=.00001, max_dist = 0.1, max_iter = 15, verbose = FALSE) {
+  # Initialize four points along the range we are going to search
+  a <- 0
+  b <- 0.33 * max_dist
+  c <- 0.66 * max_dist
+  d <- 1.0 * max_dist
+  n_iter <- 0
+
+  # While we haven't found the minimum closely enough
+  while (abs(b-c) > thresh && n_iter < max_iter) {
+    # Increment iteration counter (just to prevent an infinite loop)
+    n_iter <- n_iter+1
+    # Calculate all four points
+    lossa <- loss_function_1D(a, data, model, phi, gradient)
+    lossb <- loss_function_1D(b, data, model, phi, gradient)
+    lossc <- loss_function_1D(c, data, model, phi, gradient)
+    lossd <- loss_function_1D(d, data, model, phi, gradient)
+
+    if (verbose) {
+      print(sprintf("Iter %d, a=%3.3f, b=%3.3f, c=%3.3f, d=%3.3f", n_iter, a, b, c, d))
+      print(sprintf("a%f, b%f, c%f, d%f", lossa, lossb, lossc, lossd))
+    }
+
+    # Rule #1 If point A is less than points B, C, and D then halve distance from A to points B,C, and D
+    if (min(lossa,lossb,lossc,lossd) == 0) {
+      b <- a + (b-a) / 2
+      c <- a + (c-a) / 2
+      d <- a + (d-a) / 2
+      next
+    }
+
+    # Rule #2 If point b is less than point c then
+    #                     point d becomes point c, and
+    #                     point b becomes 1/3 between a and new d
+    #                     point c becomes 2/3 between a and new d
+    if (lossb < lossc) {
+      d <- c
+      b <- a + (d-a) / 3
+      c <- a + 2 * (d-a) / 3
+      next
+    }
+
+    # Rule #2 If point c is less than point b then
+    #                     point a becomes point b, and
+    #                     point b becomes 1/3 between new a and d
+    #                     point c becomes 2/3 between new a and d
+    a <- b
+    b <- a + (d-a) / 3
+    c <- a + 2 * (d-a) / 3
+  }
+
+  # Return average of two middle points
+  (b + c) / 2.0
+}
+```
+
+```{r}
+gradient_descent_step <- function(phi, data, model) {
+  # TODO -- update Phi with the gradient descent step (equation 6.3)
+  # 1. Compute the gradient (you wrote this function above)
+  # 2. Find the best step size alpha using line search function (above)
+  # 3. Update the parameters phi based on the gradient and the step size alpha.
+
+  gradient <- compute_gradient(data[1,], data[2,], phi)
+  alpha <- line_search(data, model, phi, gradient)
+  phi_new <- phi - alpha * gradient 
+}
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+
+# Initialize the parameters and draw the model
+n_steps <- 10
+phi_all <- matrix(0, nrow = 2, ncol = n_steps)
+phi_all[1,1] <- 1.6
+phi_all[2,1] <- -0.5
+
+# Measure loss and draw initial model
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,1])
+draw_model(data, model, phi_all[,1], sprintf("Initial parameters, Loss = %f", loss))
+
+# Repeatedly take gradient descent steps
+for (c_step in 1:(n_steps-1)) {
+  # Do gradient descent step
+  phi_all[,c_step+1] <- gradient_descent_step(phi_all[,c_step], data, model)
+  # Measure loss and draw model
+  loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
+  draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step+1, loss))
+}
+
+# Draw the trajectory on the loss function
+draw_loss_function(compute_loss, data, model, phi_all)
+```
+
+
+
+
