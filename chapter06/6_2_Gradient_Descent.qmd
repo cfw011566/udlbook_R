@@ -16,18 +16,21 @@ format: html
 ```{r}
 #| label: load library
 #| echo: false
-library(ggplot2)
 ```
 
 This notebook recreates the gradient descent algorithm as shown in figure 6.1.
 
 ```{r}
+#| label: dataset
+
 # Let's create our training data 12 pairs {x_i, y_i}
 # We'll try to fit the straight line model to these data
 data <- matrix(c(0.03,0.19,0.34,0.46,0.78,0.81,1.08,1.18,1.39,1.60,1.65,1.90, 0.67,0.85,1.05,1.00,1.40,1.50,1.30,1.54,1.55,1.68,1.73,1.60), nrow = 2, byrow = TRUE)
 ```
 
 ```{r}
+#| label: model function
+
 # Let's define our model -- just a straight line with intercept phi[0] and slope phi[1]
 model <- function(phi, x) {
   y_pred <- phi[1] + phi[2] * x
@@ -35,6 +38,8 @@ model <- function(phi, x) {
 ```
 
 ```{r}
+#| label: draw model
+
 # Draw model
 draw_model <- function(data, model, phi, title = NULL) {
   x_model <- seq(0, 2, 0.01)
@@ -54,6 +59,7 @@ draw_model <- function(data, model, phi, title = NULL) {
 ```
 
 ```{r}
+#| label: test draw model
 #| fig-width: 6
 #| fig-height: 6
 
@@ -68,6 +74,8 @@ draw_model(data, model, phi, "Initial parameters")
 Now let's compute the sum of squares loss for the training data
 
 ```{r}
+#| label: compute loss
+
 compute_loss <- function(data_x, data_y, model, phi) {
   # TODO -- Write this function -- replace the line below
   # First make model predictions from data x
@@ -81,6 +89,8 @@ compute_loss <- function(data_x, data_y, model, phi) {
 Let's just test that we got that right
 
 ```{r}
+#| label: test compute loss
+
 loss <- compute_loss(data[1,], data[2,], model, c(0.6, -0.2))
 sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 12.367)
 ```
@@ -88,6 +98,7 @@ sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 12.367)
 Now let's plot the whole loss function
 
 ```{r}
+#| label: draw loss
 #| fig-width: 6
 #| fig-height: 6
 
@@ -134,6 +145,8 @@ $$
 $$
 
 ```{r}
+#| label: compute gradient
+
 # These are in the lecture slides and notes, but worth trying to calculate them yourself to
 # check that you get them right.  Write out the expression for the sum of squares loss and take the
 # derivative with respect to phi0 and phi1
@@ -157,6 +170,8 @@ $$
 We can't do this when there are many parameters; for a million parameters, we would have to evaluate the loss function one million plus one times, and usually computing the gradients directly is much more efficient.
 
 ```{r}
+#| label: test compute gradient
+
 # Compute the gradient using your function
 gradient <- compute_gradient(data[1,], data[2,], phi)
 sprintf("Your gradients: (%3.3f,%3.3f)", gradient[1], gradient[2])
@@ -171,6 +186,8 @@ sprintf("Approx gradients: (%3.3f,%3.3f)", dl_dphi0_est, dl_dphi1_est)
 Now we are ready to perform gradient descent. We'll need to use our line search routine from notebook 6.1, which I've reproduced here plus the helper function loss_function_1D that maps the search along the negative gradient direction in 2D space to a 1D problem (distance along this direction)
 
 ```{r}
+#| label: line search
+
 loss_function_1D <- function(dist_prop, data, model, phi_start, search_direction) {
   # Return the loss after moving this far
   compute_loss(data[1,], data[2,], model, phi_start - search_direction * dist_prop)
@@ -233,6 +250,8 @@ line_search <- function(data, model, phi, gradient, thresh=.00001, max_dist = 0.
 ```
 
 ```{r}
+#| label: gradient descent step
+
 gradient_descent_step <- function(phi, data, model) {
   # TODO -- update Phi with the gradient descent step (equation 6.3)
   # 1. Compute the gradient (you wrote this function above)
@@ -246,6 +265,7 @@ gradient_descent_step <- function(phi, data, model) {
 ```
 
 ```{r}
+#| label: gradient descent iteration
 #| fig-width: 6
 #| fig-height: 6
 
@@ -271,7 +291,4 @@ for (c_step in 1:(n_steps-1)) {
 # Draw the trajectory on the loss function
 draw_loss_function(compute_loss, data, model, phi_all)
 ```
-
-
-
 
