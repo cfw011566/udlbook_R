@@ -1,0 +1,295 @@
+---
+title: "6.4 Momentum"
+author: "CF Wang"
+date: "2026-01-07"
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 6
+#| fig-height: 6
+#| fig-align: center
+```
+
+```{r}
+#| label: load library
+#| echo: false
+```
+
+This notebook investigates the use of momentum as illustrated in figure 6.7 from the book.
+
+```{r}
+#| label: data set
+
+# Let's create our training data of 30 pairs {x_i, y_i}
+# We'll try to fit the Gabor model to these data
+data <- matrix(c(-1.920e+00, -1.422e+01, 1.490e+00, -1.940e+00, -2.389e+00, -5.090e+00,
+                 -8.861e+00, 3.578e+00, -6.010e+00, -6.995e+00, 3.634e+00, 8.743e-01,
+                 -1.096e+01, 4.073e-01, -9.467e+00, 8.560e+00, 1.062e+01, -1.729e-01,
+                  1.040e+01, -1.261e+01, 1.574e-01, -1.304e+01, -2.156e+00, -1.210e+01,
+                 -1.119e+01, 2.902e+00, -8.220e+00, -1.179e+01, -8.391e+00, -4.505e+00,
+                 -1.051e+00, -2.482e-02, 8.896e-01, -4.943e-01, -9.371e-01, 4.306e-01,
+                  9.577e-03, -7.944e-02, 1.624e-01, -2.682e-01, -3.129e-01, 8.303e-01,
+                 -2.365e-02, 5.098e-01, -2.777e-01, 3.367e-01, 1.927e-01, -2.222e-01,
+                  6.352e-02, 6.888e-03, 3.224e-02, 1.091e-02, -5.706e-01, -5.258e-02,
+                 -3.666e-02, 1.709e-01, -4.805e-02, 2.008e-01, -1.904e-01, 5.952e-01),
+               nrow = 2, byrow = TRUE)
+```
+
+```{r}
+#| label: Gabor model
+
+# Let's define our model
+model <- function(phi, x) {
+  sin_component <- sin(phi[1] + 0.06 * phi[2] * x)
+  gauss_component <- exp(-(phi[1] + 0.06 * phi[2] * x)^2 / 32)
+  y_pred <- sin_component * gauss_component
+}
+```
+
+```{r}
+#| label: draw model
+
+# Draw model
+draw_model <- function(data, model, phi, title = NULL) {
+  x_model <- seq(-15, 15, 0.1)
+  y_model <- model(phi, x_model)
+
+  par(las = 1, xaxs = "i", yaxs = "i")
+  plot(0, type = "n",
+       xlim = c(-15, 15), ylim = c(-1, 1),
+       xlab = "x", ylab = "y"
+       )
+  if (!is.null(title)) {
+    title(title)
+  }
+  points(data[1,], data[2,], pch = 19, col = "blue3")
+  lines(x_model, y_model, lwd = 2, col = "magenta3")
+}
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+
+# Initialize the parameters and draw the model
+#phi = np.zeros((2,1))
+#phi[0] =  -5     # Horizontal offset
+#phi[1] =  25     # Frequency
+phi <- c(-5, 25)
+draw_model(data, model, phi, "Initial parameters")
+```
+
+Now let's compute the sum of squares loss for the training data and plot the loss function
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+compute_loss <- function(data_x, data_y, model, phi) {
+  pred_y <- model(phi, data_x)
+  loss <- sum((pred_y - data_y)^2)
+}
+
+draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
+  # Make grid of offset/frequency values to plot 
+  phi0_range <- seq(-10, 10, 0.1)
+  phi1_range <- seq(2.5, 22.5, 0.1)
+  all_losses <- outer(phi0_range, phi1_range)
+  # Compute loss for every set of parameters
+  for (i in 1:length(phi0_range)) {
+    for (j in 1:length(phi1_range)) {
+      all_losses[i, j] = compute_loss(data[1,], data[2,], model, c(phi0_range[i], phi1_range[j]))
+    }
+  }
+
+  color_rgb <- col2rgb("blue") / 255
+  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(phi_iters)) 10 else ncol(phi_iters)))
+  
+  filled.contour(
+    phi0_range,
+    phi1_range,
+    all_losses,
+    color.palette = terrain.colors,
+    xlab = expression(paste("Offset, ", phi[0])),
+    ylab = expression(paste("Frequency, ", phi[1])),
+    plot.axes = {
+      axis(1)
+      axis(2)
+      points(phi_iters[1,], phi_iters[2,],
+             pch = 19, cex = 0.75,
+             col = points_color)
+      }
+  )
+}
+
+draw_loss_function(compute_loss, data, model)
+```
+As before, we compute the gradient vector for a given set of parameters:
+$$
+\frac{\partial L}{\partial\phi} =
+\begin{bmatrix}
+\frac{\partial L}{\partial\phi_0} \\
+\frac{\partial L}{\partial \phi_1}
+\end{bmatrix}.
+\tag{1}
+$$
+
+```{r}
+#| label: compute gradient
+
+# These came from writing out the expression for the sum of squares loss and taking the
+# derivative with respect to phi0 and phi1. It was a lot of hassle to get it right!
+gabor_deriv_phi0 <- function(data_x, data_y, phi0, phi1) {
+    x <- 0.06 * phi1 * data_x + phi0
+    y <- data_y
+    cos_component <- cos(x)
+    sin_component <- sin(x)
+    gauss_component <- exp(-0.5 * x * x / 16)
+    deriv <- cos_component * gauss_component - sin_component * gauss_component * x / 16
+    deriv <- 2 * deriv * (sin_component * gauss_component - y)
+    sum(deriv)
+}
+
+gabor_deriv_phi1 <- function(data_x, data_y, phi0, phi1) {
+    x <- 0.06 * phi1 * data_x + phi0
+    y <- data_y
+    cos_component <- cos(x)
+    sin_component <- sin(x)
+    gauss_component <- exp(-0.5 * x * x / 16)
+    deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x * sin_component * gauss_component * x / 16
+    deriv <- 2 * deriv * (sin_component * gauss_component - y)
+    sum(deriv)
+}
+
+compute_gradient <- function(data_x, data_y, phi) {
+    dl_dphi0 <- gabor_deriv_phi0(data_x, data_y, phi[1], phi[2])
+    dl_dphi1 <- gabor_deriv_phi1(data_x, data_y, phi[1], phi[2])
+    # Return the gradient
+    c(dl_dphi0, dl_dphi1)
+}
+```
+
+Let's first run standard stochastic gradient descent.
+
+```{r}
+#| label: stochastic gradient descent
+#| fig-width: 8
+#| fig-height: 8
+
+# Set the random number generator so you always get same numbers (disable if you don't want this)
+set.seed(1)
+# Initialize the parameters
+n_steps <- 81
+batch_size <- 5
+alpha <- 0.6
+phi_all <- matrix(0, nrow = 2, ncol = n_steps+1)
+phi_all[1,1] <- -1.5
+phi_all[2,1] <- 6.5
+
+# Measure loss and draw initial model
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,1])
+draw_model(data, model, phi_all[,1], sprintf("Initial parameters, Loss = %f", loss))
+
+for (c_step in 1:n_steps) {
+  # Choose random batch indices
+  batch_index <- sample(ncol(data), batch_size)
+  batch_data <- data[,batch_index]
+  # Compute the gradient
+  gradient <- compute_gradient(batch_data[1,], batch_data[2,], phi_all[,c_step])
+  # Update the parameters
+  phi_all[,c_step+1] <- phi_all[,c_step] - alpha * gradient
+}
+
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
+draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+draw_loss_function(compute_loss, data, model, phi_all)
+```
+
+Now let's add momentum (equation 6.11)
+
+```{r}
+#| label: momentum
+#| fig-width: 8
+#| fig-height: 8
+
+# Set the random number generator so you always get same numbers (disable if you don't want this)
+set.seed(1)
+# Initialize the parameters
+n_steps <- 81
+batch_size <- 5
+alpha <- 0.6
+beta <- 0.6
+momentum <- matrix(0, nrow = 2, ncol = 1)
+phi_all <- matrix(0, nrow = 2, ncol = n_steps+1)
+phi_all[1,1] <- -1.5
+phi_all[2,1] <- 6.5
+
+# Measure loss and draw initial model
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,1])
+draw_model(data, model, phi_all[,1], sprintf("Initial parameters, Loss = %f", loss))
+
+for (c_step in 1:n_steps) {
+  # Choose random batch indices
+  batch_index <- sample(ncol(data), batch_size)
+  batch_data <- data[,batch_index]
+  # Compute the gradient
+  gradient <- compute_gradient(batch_data[1,], batch_data[2,], phi_all[,c_step])
+  # TODO -- calculate momentum - replace the line below
+  momentum <- beta * momentum + (1 - beta) * gradient
+  # Update the parameters
+  phi_all[,c_step+1] <- phi_all[,c_step] - alpha * momentum
+}
+
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
+draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+draw_loss_function(compute_loss, data, model, phi_all)
+```
+
+Finally, we'll try Nesterov momentum
+
+```{r}
+#| label: Nesterov momentum
+#| fig-width: 8
+#| fig-height: 8
+
+# Set the random number generator so you always get same numbers (disable if you don't want this)
+set.seed(1)
+# Initialize the parameters
+n_steps <- 81
+batch_size <- 5
+alpha <- 0.6
+beta <- 0.6
+momentum <- matrix(0, nrow = 2, ncol = 1)
+phi_all <- matrix(0, nrow = 2, ncol = n_steps+1)
+phi_all[1,1] <- -1.5
+phi_all[2,1] <- 6.5
+
+# Measure loss and draw initial model
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,1])
+draw_model(data, model, phi_all[,1], sprintf("Initial parameters, Loss = %f", loss))
+
+for (c_step in 1:n_steps) {
+  # Choose random batch indices
+  batch_index <- sample(ncol(data), batch_size)
+  batch_data <- data[,batch_index]
+  # TODO -- calculate Nesterov momentum - replace the lines below
+  phi <- phi_all[,c_step]
+  phi <- phi - alpha * beta * momentum
+  gradient <- compute_gradient(batch_data[1,], batch_data[2,], phi)
+  momentum <- beta * momentum + (1 - beta) * gradient
+  
+  # Update the parameters
+  phi_all[,c_step+1] <- phi_all[,c_step] - alpha * momentum
+}
+
+loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
+draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+draw_loss_function(compute_loss, data, model, phi_all)
+```
+
+Note that for this case, Nesterov momentum does not improve the result.
+
+

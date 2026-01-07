@@ -51,6 +51,7 @@ model <- function(phi, x) {
 
 ```{r}
 #| label: draw model
+
 # Draw model
 draw_model <- function(data, model, phi, title = NULL) {
   x_model <- seq(-15, 15, 0.1)
@@ -174,7 +175,7 @@ gabor_deriv_phi1 <- function(data_x, data_y, phi0, phi1) {
     cos_component <- cos(x)
     sin_component <- sin(x)
     gauss_component <- exp(-0.5 * x * x / 16)
-    deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x*sin_component * gauss_component * x / 16
+    deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x * sin_component * gauss_component * x / 16
     deriv <- 2 * deriv * (sin_component * gauss_component - y)
     sum(deriv)
 }
@@ -371,8 +372,8 @@ stochastic_gradient_descent_step <- function(phi, data, alpha, batch_size) {
   # and then just choose the first n=batch_size of these indices.  Then compute the gradient update
   # from just the data with these indices.   More properly, you should sample without replacement, but this will do for now.
 
-  random_data <- data[,sample(ncol(data))]
-  batch_data <- data[,1:batch_size]
+  batch_index <- sample(ncol(data), batch_size)
+  batch_data <- data[,batch_index]
   gradient <- compute_gradient(batch_data[1,], batch_data[2,], phi)
   phi <- phi - alpha * gradient
 }
@@ -412,15 +413,15 @@ draw_loss_function(compute_loss, data, model, phi_all)
 #| fig-height: 8
 
 # TODO -- Experiment with different learning rates, starting points, batch sizes, number of steps.  Get a feel for this.
-set.seed(123)
+set.seed(1)
 n_steps <- 61
 phi_all <- matrix(0, nrow = 2, ncol = n_steps+1)
-phi_all[1,1] <- 2 
+phi_all[1,1] <- 2
 phi_all[2,1] <- 5 
 
 for (c_step in 1:n_steps) {
   # Do gradient descent step
-  phi_all[,c_step+1] <- stochastic_gradient_descent_step(phi_all[,c_step], data, alpha = 0.8, batch_size = 10)
+  phi_all[,c_step+1] <- stochastic_gradient_descent_step(phi_all[,c_step], data, alpha = 0.5, batch_size = 10)
   # Measure loss and draw model every 8th step
   if (c_step %% 8 == 0) {
     loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
@@ -437,7 +438,7 @@ draw_loss_function(compute_loss, data, model, phi_all)
 #| fig-height: 8
 
 # TODO -- Add a learning rate schedule.  Reduce the learning rate by a factor of beta every M iterations
-set.seed(123)
+set.seed(1)
 n_steps <- 61
 phi_all <- matrix(0, nrow = 2, ncol = n_steps+1)
 phi_all[1,1] <- 2 
