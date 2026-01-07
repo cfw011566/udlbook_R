@@ -1,0 +1,199 @@
+---
+title: "6.5 Adam"
+author: "CF Wang"
+date: "2026-01-07"
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 6
+#| fig-height: 6
+#| fig-align: center
+```
+
+```{r}
+#| label: load library
+#| echo: false
+```
+
+This notebook investigates the Adam algorithm as illustrated in figure 6.9 from the book.
+
+```{r}
+# Define function that we wish to find the minimum of (normally would be defined implicitly by data and loss)
+loss <- function(phi0, phi1) {
+  height <- exp(-0.5 * (phi1 * phi1) * 4.0)
+  height <- height * exp(-0.5 * (phi0 - 0.7)^2 / 4.0)
+  1.0 - height
+}
+
+# Compute the gradients of this function (for simplicity, I just used finite differences)
+get_loss_gradient <- function(phi0, phi1) {
+  delta_phi <- 0.00001
+  gradient <- c(0, 0)
+  gradient[1] <- (loss(phi0 + delta_phi/2.0, phi1) - loss(phi0 - delta_phi/2.0, phi1)) / delta_phi
+  gradient[2] <- (loss(phi0, phi1 + delta_phi/2.0) - loss(phi0, phi1 - delta_phi/2.0)) / delta_phi
+  gradient
+}
+
+# Compute the loss function at a range of values of phi0 and phi1 for plotting
+get_loss_function_for_plot <- function() {
+  phi0_mesh <- seq(-1, 1, 0.01)
+  phi1_mesh <- seq(-1, 1, 0.01)
+  all_losses <- outer(phi0_mesh, phi1_mesh)
+  # Compute loss for every set of parameters
+  for (i in 1:length(phi0_mesh)) {
+    for (j in 1:length(phi1_mesh)) {
+      all_losses[i, j] = loss(phi0_mesh[i], phi1_mesh[j])
+    }
+  }
+  list(loss_function = all_losses, phi0mesh = phi0_mesh, phi1mesh = phi1_mesh)
+}
+```
+
+```{r}
+# Plotting function
+draw_function <- function(phi0mesh, phi1mesh, loss_function, opt_path) {
+  color_rgb <- col2rgb("blue") / 255
+  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(opt_path)) 10 else ncol(opt_path)))
+  
+  filled.contour(
+    phi0mesh,
+    phi1mesh,
+    loss_function,
+    color.palette = terrain.colors,
+    xlab = expression(phi[0]),
+    ylab = expression(phi[1]),
+    plot.axes = {
+      axis(1)
+      axis(2)
+      lines(opt_path[1,], opt_path[2,], col = "blue", lwd = 1)
+      points(opt_path[1,], opt_path[2,],
+             pch = 19, cex = 0.75,
+             col = "blue")
+      }
+  )
+}
+```
+
+```{r}
+# Simple fixed step size gradient descent
+grad_descent <- function(start_posn, n_steps, alpha) {
+  grad_path <- matrix(0, nrow = 2, ncol = n_steps+1)
+  grad_path[,1] <- start_posn[,1]
+  for (c_step in 1:n_steps) {
+    this_grad <- get_loss_gradient(grad_path[1,c_step], grad_path[2,c_step])
+    grad_path[,c_step+1] <- grad_path[,c_step] - alpha * this_grad
+  }
+  grad_path
+}
+```
+
+We'll start by running gradient descent with a fixed step size for this loss function.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+plot_data = get_loss_function_for_plot()
+loss_function <- plot_data$loss_function
+phi0mesh <- plot_data$phi0mesh
+phi1mesh <- plot_data$phi1mesh
+
+start_posn <- matrix(0, nrow = 2, ncol = 1)
+start_posn[1,1] <- -0.7
+start_posn[2,1] <- -0.9
+
+# Run gradient descent
+grad_path1 <- grad_descent(start_posn, n_steps = 200, alpha = 0.08)
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path1)
+grad_path2 <- grad_descent(start_posn, n_steps = 40, alpha = 1.0)
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path2)
+```
+
+Because the function changes much faster in $\phi_1$ than in $\phi_0$, there is no great step size to choose. If we set the step size so that it makes sensible progress in the $\phi_1$ direction, then it takes many iterations to converge. If we set the step size so that we make sensible progress in the $\phi_0$ direction, then the path oscillates in the $\phi_1$ direction.
+
+This motivates Adam. At the core of Adam is the idea that we should just determine which way is downhill along each axis (i.e. left/right for $\phi_0$ or up/down for $\phi_1$) and move a fixed distance in that direction.
+
+```{r}
+normalized_gradients <- function(start_posn, n_steps, alpha, epsilon = 1e-20) {
+  grad_path <- matrix(0, nrow = 2, ncol = n_steps+1)
+  grad_path[,1] <- start_posn[,1]
+  for (c_step in 1:n_steps) {
+    # Measure the gradient as in equation 6.13 (first line)
+    m <- get_loss_gradient(grad_path[1,c_step], grad_path[2,c_step])
+    # TODO -- compute the squared gradient as in equation 6.13 (second line)
+    # Replace this line:
+    # v = np.ones_like(grad_path[:,0])
+    v <- m * m
+    
+    # TODO -- apply the update rule (equation 6.14)
+    # Replace this line:
+    grad_path[,c_step+1] <- grad_path[,c_step] - alpha * m / (sqrt(v) + epsilon)
+  }
+  grad_path
+}
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+# Let's try out normalized gradients
+start_posn <- matrix(0, nrow = 2, ncol = 1)
+start_posn[1,1] <- -0.7
+start_posn[2,1] <- -0.9
+
+# Run gradient descent
+grad_path1 <- normalized_gradients(start_posn, n_steps = 40, alpha = 0.08)
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path1)
+```
+
+This moves towards the minimum at a sensible speed, but we never actually converge -- the solution just bounces back and forth between the last two points. To make it converge, we add momentum to both the estimates of the gradient and the pointwise squared gradient. We also modify the statistics by a factor that depends on the time to make sure the progress is not slow to start with.
+
+```{r}
+#| label: adam
+ 
+adam <- function(start_posn, n_steps, alpha, beta = 0.9, gamma = 0.99, epsilon = 1e-20) {
+  grad_path <- matrix(0, nrow = 2, ncol = n_steps+1)
+  grad_path[,1] <- start_posn[,1]
+  m <- matrix(0, nrow = 2, ncol = 1)
+  v <- matrix(0, nrow = 2, ncol = 1)
+  for (c_step in 1:n_steps) {
+    # Measure the gradient
+    grad = get_loss_gradient(grad_path[1,c_step], grad_path[2,c_step])
+    # TODO -- Update the momentum based gradient estimate equation 6.15 (first line)
+    # Replace this line:
+    m <- beta * m + (1 - beta) * grad
+    # TODO -- update the momentum based squared gradient estimate as in equation 6.15 (second line)
+    # Replace this line:
+    v <- gamma * v + (1 - gamma) * grad * grad
+
+    # TODO -- Modify the statistics according to equation 6.16
+    # You will need the function np.power
+    # Replace these lines
+    m_tilde <- m / (1 - beta^c_step)
+    v_tilde <- v / (1 - gamma^c_step)
+
+    # TODO -- apply the update rule (equation 6.17)
+    # Replace this line:
+    grad_path[,c_step+1] <- grad_path[,c_step] - alpha * m / (sqrt(v_tilde)+epsilon)
+  }
+  grad_path
+}   
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+# Let's try out our Adam algorithm
+start_posn <- matrix(0, nrow = 2, ncol = 1)
+start_posn[1,1] <- -0.7
+start_posn[2,1] <- -0.9
+
+# Run gradient descent
+grad_path1 <- adam(start_posn, n_steps = 60, alpha = 0.05)
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path1)
+```
