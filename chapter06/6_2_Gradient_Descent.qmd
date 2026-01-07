@@ -113,8 +113,8 @@ draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
   }
 # all_losses <- outer(phi0_range, phi1_range, function(p0, p1) { compute_loss(x, y, p0, p1)})
 
-  color_rgb <- col2rgb("skyblue") / 255
-  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.5, 1, length.out=10))
+  color_rgb <- col2rgb("blue") / 255
+  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(phi_iters)) 10 else ncol(phi_iters)))
   
   filled.contour(
     phi0_range,
@@ -142,6 +142,7 @@ $$
 \frac{\partial L}{\partial\phi_0} \\
 \frac{\partial L}{\partial \phi_1}
 \end{bmatrix}
+\tag{1}
 $$
 
 ```{r}
@@ -163,8 +164,8 @@ compute_gradient <- function(data_x, data_y, phi) {
 We can check we got this right using a trick known as **finite differences**. If we evaluate the function and then change one of the parameters by a very small amount and normalize by that amount, we get an approximation to the gradient, so:
 $$
 \begin{aligned}
-\frac{\partial L}{\partial\phi_0} &= \frac{L[\phi_0+\delta,\phi_1] - L[\phi_0,\phi_1]}{\delta} \\
-\frac{\partial L}{\partial\phi_1} &= \frac{L[\phi_0,\phi_1+\delta] - L[\phi_0,\phi_1]}{\delta}
+\frac{\partial L}{\partial\phi_0} &\approx \frac{L[\phi_0+\delta,\phi_1] - L[\phi_0,\phi_1]}{\delta} \\
+\frac{\partial L}{\partial\phi_1} &\approx \frac{L[\phi_0,\phi_1+\delta] - L[\phi_0,\phi_1]}{\delta}
 \end{aligned}
 $$
 We can't do this when there are many parameters; for a million parameters, we would have to evaluate the loss function one million plus one times, and usually computing the gradients directly is much more efficient.
@@ -271,7 +272,7 @@ gradient_descent_step <- function(phi, data, model) {
 
 # Initialize the parameters and draw the model
 n_steps <- 10
-phi_all <- matrix(0, nrow = 2, ncol = n_steps)
+phi_all <- matrix(0, nrow = 2, ncol = n_steps+1)
 phi_all[1,1] <- 1.6
 phi_all[2,1] <- -0.5
 
@@ -280,12 +281,12 @@ loss <- compute_loss(data[1,], data[2,], model, phi_all[,1])
 draw_model(data, model, phi_all[,1], sprintf("Initial parameters, Loss = %f", loss))
 
 # Repeatedly take gradient descent steps
-for (c_step in 1:(n_steps-1)) {
+for (c_step in 1:n_steps) {
   # Do gradient descent step
   phi_all[,c_step+1] <- gradient_descent_step(phi_all[,c_step], data, model)
   # Measure loss and draw model
   loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
-  draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step+1, loss))
+  draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
 }
 
 # Draw the trajectory on the loss function
