@@ -1,0 +1,237 @@
+---
+title: "7.1 Backpropagation in Toy Model"
+author: "CF Wang"
+date: "2026-01-08"
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 6
+#| fig-height: 6
+#| fig-align: center
+```
+
+```{r}
+#| label: load library
+#| echo: false
+```
+
+This notebook computes the derivatives of the toy function discussed in section 7.3 of the book.
+
+We're going to investigate how to take the derivatives of functions where one operation is composed with another, which is composed with a third and so on. For example, consider the model:
+$$
+\tag{1}
+f[x,\phi] = \beta_3 + \omega_3 \cdot \cos[\beta_2 + \omega_2 \cdot \exp[\beta_1 + \omega_1 \cdot \sin[\beta_0 + \omega_0 x]]]
+$$
+with parameters $\phi = \{\beta_0,\omega_0,\beta_1,\omega_1,\beta_2,\omega_2\}$.
+
+This is a composition of the functions $\cos[\bullet],\exp[\bullet],sin[\bullet]$. I chose these just because you probably already know the derivatives of these functions:
+$$
+\tag{2}
+\frac{\partial\cos[z]}{\partial z} = - \sin[z] \qquad \frac{\partial\exp[z]}{\partial z} = \exp[z] \qquad \frac{\partial\sin[z]}{\partial z} = \cos[z]
+$$
+Suppose that we have a least squares loss function:
+$$
+\ell_i = (f[x_i,\phi] - y_i)^2,
+$$
+Assume that we know the current values of $\beta_0, \beta_1, \beta_2, \beta_3, \omega_0, \omega_1, \omega_2, \omega_3, x_i$ and $y_i$. We could obviously calculate $\ell_i$. But we also want to know how $\ell_i$ changes when we make a small change to $\beta_0, \beta_1, \beta_2, \beta_3, \omega_0, \omega_1, \omega_2$, or $\omega_3$. In other words, we want to compute the eight derivatives:
+$$
+\tag{3}
+\frac{\partial\ell_i}{\partial\beta_0},\quad
+\frac{\partial\ell_i}{\partial\beta_1},\quad
+\frac{\partial\ell_i}{\partial\beta_2},\quad
+\frac{\partial\ell_i}{\partial\beta_3},\quad
+\frac{\partial\ell_i}{\partial\omega_0},\quad
+\frac{\partial\ell_i}{\partial\omega_1},\quad
+\frac{\partial\ell_i}{\partial\omega_2},\quad
+\text{and}\quad
+\frac{\partial\ell_i}{\partial\omega_3}.
+$$
+ 
+Let's first define the original function for $y$ and the loss term:
+
+```{r}
+fn <- function(x, beta0, beta1, beta2, beta3, omega0, omega1, omega2, omega3) {
+  beta3 + omega3 * cos(beta2 + omega2 * exp(beta1 + omega1 * sin(beta0 + omega0 * x)))
+}
+
+loss <- function(x, y, beta0, beta1, beta2, beta3, omega0, omega1, omega2, omega3) {
+  diff <- fn(x, beta0, beta1, beta2, beta3, omega0, omega1, omega2, omega3) - y
+  diff * diff
+}
+```
+
+Now we'll choose some values for the betas and the omegas and x and compute the output of the function: 
+ 
+```{r}
+beta0 <- 1.0; beta1 <- 2.0; beta2 <- -3.0; beta3 <- 0.4
+omega0 <- 0.1; omega1 <- -0.4; omega2 <- 2.0; omega3 <- 3.0
+x <- 2.3; y <- 2.0
+l_i_func <- loss(x,y,beta0,beta1,beta2,beta3,omega0,omega1,omega2,omega3)
+sprintf("l_i=%3.3f", l_i_func)
+```
+l_i=0.139
+ 
+# Computing derivatives by hand
+
+We could compute expressions for the derivatives by hand and write code to compute them directly but some have very complex expressions, even for this relatively simple original equation. For example:
+$$
+\begin{split}
+\frac{\partial\ell_i}{\partial\omega_0} = -2(\beta_3+\omega_3\cdot\cos[\beta_2 + \omega_2 \cdot \exp[\beta_1 + \omega_1 \cdot \sin[\beta_0 + \omega_0 \cdot x_i]]] - y_i) \\\\
+\cdot \omega_1\omega_2\omega_3 \cdot x_i \cdot \cos[\beta_0 + \omega_0 \cdot x_i] \cdot \exp[\beta_1 + \omega_1 \cdot \sin[\beta_0 + \omega_0 \cdot x_i]] \\\\
+\cdot \sin[\beta_2 + \omega_2 \cdot \exp[\beta_1 + \omega_1 \cdot \sin[\beta_0 + \omega_0 \cdot x_i]]]
+\end{split}
+\tag{4}
+$$
+
+```{r}
+dldbeta3_func <- 2 * (beta3 + omega3 * cos(beta2 + omega2 * exp(beta1 + omega1 * sin(beta0 + omega0 * x))) - y)
+dldomega0_func <- -2 *(beta3 + omega3 * cos(beta2 + omega2 * exp(beta1 + omega1 * sin(beta0 + omega0 * x))) - y) * omega1 * omega2 * omega3 * x * cos(beta0 + omega0 * x) * exp(beta1 + omega1 * sin(beta0 + omega0 * x)) * sin(beta2 + omega2 * exp(beta1 + omega1 * sin(beta0+omega0 * x)))
+```
+
+Let's make sure this is correct using finite differences:
+
+```{r}
+dldomega0_fd <- (loss(x,y,beta0,beta1,beta2,beta3,omega0+0.00001,omega1,omega2,omega3)-loss(x,y,beta0,beta1,beta2,beta3,omega0,omega1,omega2,omega3))/0.00001
+
+sprintf("dydomega0: Function value = %3.3f, Finite difference value = %3.3f", dldomega0_func, dldomega0_fd)
+```
+
+dydomega0: Function value = 5.246, Finite difference value = 5.246
+
+The code to calculate $\partial\ell_i/\partial\omega_0$ is a bit of a nightmare. It's easy to make mistakes, and you can see that some parts of it are repeated (for example, the $\sin[\bullet]$ term), which suggests some kind of redundancy in the calculations. The goal of this practical is to compute the derivatives in a much simpler way. There will be three steps:
+
+**Step 1**: Write the original equations as a series of intermediate calculations.
+$$
+\begin{align}
+f_0 &= \beta_0 + \omega_0 x_i \\
+h_1 &= \sin[f_0] \\
+f_1 &= \beta_1 + \omega_1 h_1 \\
+h_2 &= \exp[f_1] \\
+f_2 &= \beta_2 + \omega_2 h_2 \\
+h_3 &= \cos[f_2] \\
+f_3 &= \beta_3 + \omega_3 h_3 \\
+\ell_i &= (f_3 - y_i)^2 \tag{5}
+\end{align}
+$$
+and compute and store the values of all of these intermediate values. We'll need them to compute the derivatives.
+This is called the **forward pass**.
+
+```{r}
+#| label: Forward pass
+# TODO compute all the f_k and h_k terms
+# Replace the code below
+
+f0 <- beta0 + omega0 * x
+h1 <- sin(f0)
+f1 <- beta1 + omega1 * h1
+h2 <- exp(f1)
+f2 <- beta2 + omega2 * h2
+h3 <- cos(f2)
+f3 <- beta3 + omega3 * h3
+l_i <- (f3 - y)^2
+```
+
+```{r}
+# Let's check we got that right:
+sprintf("f0: true value = %3.3f, your value = %3.3f", 1.230, f0)
+sprintf("h1: true value = %3.3f, your value = %3.3f", 0.942, h1)
+sprintf("f1: true value = %3.3f, your value = %3.3f", 1.623, f1)
+sprintf("h2: true value = %3.3f, your value = %3.3f", 5.068, h2)
+sprintf("f2: true value = %3.3f, your value = %3.3f", 7.137, f2)
+sprintf("h3: true value = %3.3f, your value = %3.3f", 0.657, h3)
+sprintf("f3: true value = %3.3f, your value = %3.3f", 2.372, f3)
+sprintf("l_i original = %3.3f, l_i from forward pass = %3.3f", l_i_func, l_i)
+```
+
+**Step 2**: Compute the derivatives of $\ell_i$ with respect to the intermediate quantities that we just calculated, but in reverse order:
+$$
+\tag{6}
+\frac{\partial\ell_i}{\partial f_3},\quad
+\frac{\partial\ell_i}{\partial h_3},\quad
+\frac{\partial\ell_i}{\partial f_2},\quad
+\frac{\partial\ell_i}{\partial h_2},\quad
+\frac{\partial\ell_i}{\partial f_1},\quad
+\frac{\partial\ell_i}{\partial h_1},\quad
+and \quad
+\frac{\partial\ell_i}{\partial f_0}.
+$$
+The first of these derivatives is straightforward:
+$$
+\tag{7}
+\frac{\partial\ell_i}{\partial f_3} = 2(f_3 - y).
+$$
+The second derivative can be calculated using the chain rule:
+$$
+\tag{8}
+\frac{\partial\ell_i}{\partial h_3} =
+\frac{\partial f_3}{\partial h_3} \frac{\partial \ell_i}{\partial f_3}.
+$$ 
+The left-hand side asks how $\ell_i$ changes when $h_3$ changes. The right-hand side says we can decompose this into (i) how $\ell_i$ changes when $f_3$ changes and how $f_3$ changes when $h_3$ changes. So you get a chain of events happening: $h_3$ changes $f_3$, which changes $\ell_i$, and the derivatives represent the effects of this chain. Notice that we computed the first of these derivatives already and is $2(f_3 - y)$. We calculated $f_3$ in step 1. The second term is the derivative of $\beta_3+\omega_3h_3$ with respect to $h_3$ which is simply $\omega_3$.
+
+We can continue in this way, computing the derivatives of the output with respect to these intermediate quantities:
+$$
+\begin{align}
+\frac{\partial\ell_i}{\partial f_2} &= \frac{\partial h_3}{\partial f_2}\left(\frac{\partial h_3}{\partial f_3}\frac{\partial\ell_i}{\partial f_3}\right) \\
+\frac{\partial\ell_i}{\partial h_2} &= \frac{\partial f_2}{\partial h_2} \left(\frac{\partial h_3}{\partial f_2}\frac{\partial h_3}{\partial f_3}\frac{\partial\ell_i}{\partial f_3}\right) \\
+\frac{\partial\ell_i}{\partial f_1} &= \frac{\partial h_2}{\partial f_1} \left(\frac{\partial f_2}{\partial h_2} \frac{\partial h_3}{\partial f_2}\frac{\partial h_3}{\partial f_3}\frac{\partial\ell_i}{\partial f_3}\right) \\
+\frac{\partial\ell_i}{\partial h_1} &= \frac{\partial f_1}{\partial h_1} \left(\frac{\partial h_2}{\partial f_1} \frac{\partial f_2}{\partial h_2} \frac{\partial h_3}{\partial f_2}\frac{\partial h_3}{\partial f_3}\frac{\partial\ell_i}{\partial f_3}\right) \\
+\frac{\partial\ell_i}{\partial f_0} &= \frac{\partial h_1}{\partial f_0} \left(\frac{\partial f_1}{\partial h_1} \frac{\partial h_2}{\partial f_1} \frac{\partial f_2}{\partial h_2} \frac{\partial h_3}{\partial f_2}\frac{\partial h_3}{\partial f_3}\frac{\partial\ell_i}{\partial f_3}\right) \tag{9}
+\end{align}
+$$ 
+In each case, we have already computed all of the terms except the last one in the previous step, and the last term is simple to evaluate. This is called the **backward pass**.
+
+```{r}
+#: label: Backward pass #1
+# TODO -- Compute the derivatives of the output with respect
+# to the intermediate computations h_k and f_k (i.e, run the backward pass)
+# I've done the first two for you.  You replace the code below:
+dldf3 <- 2 * (f3 - y)
+dldh3 <- omega3 * dldf3
+# Replace the code below
+dldf2 <- -sin(f2) * dldh3
+dldh2 <- omega2 * dldf2
+dldf1 <- exp(f1) * dldh2
+dldh1 <- omega1 * dldf1
+dldf0 <- cos(f0) * dldh1
+```
+
+```{r}
+# Let's check we got that right
+sprintf("dldf3: true value = %3.3f, your value = %3.3f", 0.745, dldf3)
+sprintf("dldh3: true value = %3.3f, your value = %3.3f", 2.234, dldh3)
+sprintf("dldf2: true value = %3.3f, your value = %3.3f", -1.683, dldf2)
+sprintf("dldh2: true value = %3.3f, your value = %3.3f", -3.366, dldh2)
+sprintf("dldf1: true value = %3.3f, your value = %3.3f", -17.060, dldf1)
+sprintf("dldh1: true value = %3.3f, your value = %3.3f", 6.824, dldh1)
+sprintf("dldf0: true value = %3.3f, your value = %3.3f", 2.281, dldf0)
+```
+
+```{r}
+#: label: Backward pass #2
+# TODO -- Calculate the final derivatives with respect to the beta and omega terms
+dldbeta3 <- dldf3
+dldomega3 <- h3 * dldf3
+dldbeta2 <- dldf2
+dldomega2 <- h2 * dldf2
+dldbeta1 <- dldf1
+dldomega1 <- h1 * dldf1
+dldbeta0 <- dldf0
+dldomega0 <- x * dldf0
+```
+
+```{r}
+# Let's check we got them right
+sprintf("dldbeta3: Your value = %3.3f, True value = %3.3f", dldbeta3, 0.745)
+sprintf("dldomega3: Your value = %3.3f, True value = %3.3f", dldomega3, 0.489)
+sprintf("dldbeta2: Your value = %3.3f, True value = %3.3f", dldbeta2, -1.683)
+sprintf("dldomega2: Your value = %3.3f, True value = %3.3f", dldomega2, -8.530)
+sprintf("dldbeta1: Your value = %3.3f, True value = %3.3f", dldbeta1, -17.060)
+sprintf("dldomega1: Your value = %3.3f, True value = %3.3f", dldomega1, -16.079)
+sprintf("dldbeta0: Your value = %3.3f, True value = %3.3f", dldbeta0, 2.281)
+sprintf("dldomega0: Your value = %3.3f, Function value = %3.3f, Finite difference value = %3.3f", dldomega0, dldomega0_func, dldomega0_fd)
+```
+
+Using this method, we can compute the derivatives quite easily without needing to compute very complicated expressions. In the next practical, we'll apply this same method to a deep neural network.
