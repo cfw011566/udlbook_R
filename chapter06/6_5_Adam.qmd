@@ -56,7 +56,7 @@ get_loss_function_for_plot <- function() {
 # Plotting function
 draw_function <- function(phi0mesh, phi1mesh, loss_function, opt_path) {
   color_rgb <- col2rgb("blue") / 255
-  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(opt_path)) 10 else ncol(opt_path)))
+  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=ifelse(is.null(opt_path), 10, ncol(opt_path))))
   
   filled.contour(
     phi0mesh,

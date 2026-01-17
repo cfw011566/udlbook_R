@@ -1,0 +1,187 @@
+---
+title: "7.2 Backpropagation"
+author: "CF Wang"
+date: "2026-01-08"
+format: html
+---
+
+```{r}
+#| label: setup
+#| echo: true
+#| fig-width: 6
+#| fig-height: 6
+#| fig-align: center
+```
+
+```{r}
+#| label: load library
+#| echo: false
+```
+
+This notebook runs the backpropagation algorithm on a deep neural network as described in section 7.4 of the book.
+
+First let's define a neural network. We'll just choose the weights and biases randomly for now
+
+```{r}
+# Set seed so we always get the same random numbers
+set.seed(0)
+
+# Number of hidden layers
+K <- 5
+# Number of neurons per layer
+D <- 6
+# Input layer
+D_i <- 1
+# Output layer
+D_o <- 1
+
+# Make empty lists
+all_weights <- vector(mode = "list", length = K + 1)
+all_biases <- vector(mode = "list", length = K + 1)
+
+# Create input and output layers
+all_weights[[1]] <- matrix(rnorm(D*D_i), nrow = D, ncol = D_i)
+all_weights[[K+1]] <- matrix(rnorm(D_o*D), nrow = D_o, ncol = D)
+all_biases[[1]] <- matrix(rnorm(D*1), nrow = D, ncol = 1)
+all_biases[[K+1]] <- matrix(rnorm(D_o*1), nrow = D_o, ncol = 1)
+
+# Create intermediate layers
+for (layer in 2:K) {
+  all_weights[[layer]] <- matrix(rnorm(D*D), nrow = D, ncol = D)
+  all_biases[[layer]] <- matrix(rnorm(D*1), nrow = D, ncol = 1)
+}
+```
+
+```{r}
+#| label: ReLU
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+```
+
+Now let's run our random network. The weight matrices $\boldsymbol\Omega_{0...K}$ are the entries of the list "all_weights" and the biases $\boldsymbol\beta_{0...K}$ are the entries of the list "all_biases"
+
+We know that we will need the preactivations $\text{f}_{0...K}$ and the activations $\text{h}_{1...K}$ for the forward pass of backpropagation, so we'll store and return these as well.
+ 
+```{r}
+compute_network_output <- function(net_input, all_weights, all_biases) {
+  # Retrieve number of layers
+  K <- length(all_weights) - 1
+
+  # We'll store the pre-activations at each layer in a list "all_f"
+  # and the activations in a second list "all_h".
+  all_f <- vector(mode = "list", length = K+1)
+  all_h <- vector(mode = "list", length = K+1)
+
+  #For convenience, we'll set
+  # all_h[0] to be the input, and all_f[K] will be the output
+  all_h[[1]] <- net_input
+
+  # Run through the layers, calculating all_f[0...K-1] and all_h[1...K]
+  for (layer in 1:K) {
+      # Update preactivations and activations at this layer according to eqn 7.17
+      # Remember to use np.matmul for matrix multiplications
+      # TODO -- Replace the lines below
+      all_f[[layer]] <- all_biases[[layer]] + all_weights[[layer]] %*% all_h[[layer]]
+      all_h[[layer+1]] <- ReLU(all_f[[layer]])
+  }
+  # Compute the output from the last hidden layer
+  # TODO -- Replace the line below
+  all_f[K+1] <- all_biases[[K+1]] + all_weights[[K+1]] %*% all_h[[K+1]]
+
+  # Retrieve the output
+  net_output <- all_f[[K+1]]
+
+  list(net_output = net_output, all_f = all_f, all_h = all_h)
+}
+```
+ 
+```{r}
+# Define input
+net_input <- matrix(1, nrow = D_i, ncol = 1) * 1.2
+# Compute network output
+network <- compute_network_output(net_input, all_weights, all_biases)
+net_output <- network$net_output
+all_f <- network$all_f
+all_h <- network$all_h
+sprintf("True output = %3.3f, Your answer = %3.3f", 1.907, network$net_output)
+```
+
+Now let's define a loss function. We'll just use the least squares loss function. We'll also write a function to compute dloss_doutput
+
+```{r}
+least_squares_loss <- function(net_output, y) {
+  sum((net_output - y)^2)
+}
+
+d_loss_d_output <- function(net_output, y) {
+  2 * (net_output - y)
+}
+```
+
+```{r}
+y <- matrix(1, nrow = D_o, ncol = 1) * 20.0
+loss <- least_squares_loss(network$net_output, y)
+sprintf("y = %3.3f Loss = %3.3f", y, loss)
+```
+ 
+Now let's compute the derivatives of the network. We already computed the forward pass. Let's compute the backward pass. 
+
+```{r}
+# We'll need the indicator function
+indicator_function <- function(x) {
+  x_in <- c(x)
+  x_in[x_in>0] = 1
+  x_in[x_in<=0] = 0
+  x_in
+}
+
+# Main backward pass routine
+backward_pass <- function(all_weights, all_biases, all_f, all_h, y) {
+  # We'll store the derivatives dl_dweights and dl_dbiases in lists as well
+  all_dl_dweights <- vector(mode = "list", length = K+1)
+  all_dl_dbiases <- vector(mode = "list", length = K+1)
+  # And we'll store the derivatives of the loss with respect to the activation and preactivations in lists
+  all_dl_df <- vector(mode = "list", length = K+1)
+  all_dl_dh <- vector(mode = "list", length = K+1)
+  # Again for convenience we'll stick with the convention that all_h[0] is the net input and all_f[k] in the net output
+
+  # Compute derivatives of the loss with respect to the network output
+  all_dl_df[[K+1]] <- c(d_loss_d_output(all_f[[K+1]],y))
+
+  # Now work backwards through the network
+  for (layer in rev(1:(K+1))) {
+    # TODO Calculate the derivatives of the loss with respect to the biases at layer from all_dl_df[layer]. (eq 7.22)
+    # NOTE!  To take a copy of matrix X, use Z=np.array(X)
+    # REPLACE THIS LINE
+    all_dl_dbiases[[layer]] <- all_dl_df[[layer]]
+
+    # TODO Calculate the derivatives of the loss with respect to the weights at layer from all_dl_df[layer] and all_h[layer] (eq 7.23)
+    # Don't forget to use np.matmul
+    # REPLACE THIS LINE
+    all_dl_dweights[[layer]] <- all_dl_df[[layer]] %*% t(all_h[[layer]])
+
+    # TODO: calculate the derivatives of the loss with respect to the activations from weight and derivatives of next preactivations (second part of last line of eq 7.25)
+    # REPLACE THIS LINE
+    all_dl_dh[[layer]] <- t(all_weights[[layer]]) %*% all_dl_df[[layer]]
+
+
+    if (layer > 1) {
+      # TODO Calculate the derivatives of the loss with respect to the pre-activation f (use derivative of ReLu function, first part of last line of eq. 7.25)
+      # REPLACE THIS LINE
+      all_dl_df[[layer-1]] <- indicator_function(all_f[[layer-1]]) * all_dl_dh[[layer]]
+    }
+  }
+
+  list(all_dl_dweights = all_dl_dweights, all_dl_dbiases = all_dl_dbiases)
+}
+```
+
+```{r}
+back_pass <- backward_pass(all_weights, all_biases, all_f, all_h, y)
+all_dl_dweights <- back_pass$all_dl_dweights
+all_dl_dbiases <- back_pass$all_dl_dbaiases
+```
+
+
