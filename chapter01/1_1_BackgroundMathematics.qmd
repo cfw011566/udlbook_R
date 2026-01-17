@@ -1,18 +1,17 @@
 ---
-title: Notebook 1.1 -- Background Mathematics
-author: CF Wang
-date: 2025-11-17
+title: "1.1 Background Mathematics"
+author: "CF Wang"
+date: 2026-01-17
 format: html
-editor: visual
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
-#| fig-width: 8
-#| fig-height: 6
-#| out-width: 80%
+#| fig-width: 6
+#| fig-asp: 0.618
 #| fig-align: center
+#| out-width: 70%
+
 library(ggplot2)
 ```
 
@@ -34,28 +33,31 @@ Any other functions are by definition **non-linear**.
 
 ```{r}
 #| label: linear_function_1D
+
 # Define a linear function with just one input, x
 linear_function_1D <- function(x, beta, omega) {
   # TODO -- replace the code line below with formula for 1D linear equation
-  y <- beta + omega * x
-  y
+  beta + omega * x
 }
 ```
 
 ```{r}
-#| label: Plot 1D linear function
+#| label: plot-1D-linear-function
+
 # Plot the 1D linear function
 
 # Define an array of x values from 0 to 10 with increments of 0.01
 x <- seq(0.0, 10.0, 0.01)
 # Compute y using the function you filled in above
-beta <- 0
-omega <- 0
+beta <- 0.0
+omega <- 1.0
 
 y <- linear_function_1D(x, beta, omega)
 
 # Plot this function
-plot(x, y, type = "l", xlim = c(0, 10), ylim = c(0, 10), xlab = "x", ylab = "y", lwd = 2, col = "red")
+ggplot(data.frame(x = x, y = y), aes(x = x, y = y)) +
+  geom_line(linewidth = 0.5, color = "red3") +
+  coord_cartesian(xlim = c(0, 10), ylim = c(0, 10))
 
 # TODO -- experiment with changing the values of beta and omega
 # to understand what they do.  Try to make a line
@@ -64,7 +66,7 @@ beta <- 10.0
 omega <- -2.0
 y <- linear_function_1D(x, beta, omega)
 ggplot(data = data.frame(x = x, y = y), mapping = aes(x = x, y = y)) +
-  geom_line(linewidth = 0.5, color = "red") +
+  geom_line(linewidth = 0.5, color = "red3") +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10))
 
 ```
@@ -73,28 +75,39 @@ Now let's investigate a 2D linear function
 
 ```{r}
 #| label: draw_2D_function
+
 # Code to draw 2D function -- read it so you know what is going on,
 # but you don't have to change it
 draw_2D_function <- function(x1, x2, y) {
-  filled.contour(x1, x2, y, color.palette = terrain.colors,
-                 xlab = "x1", ylab = "x2")
+  df <- expand.grid(x = x1, y = x2)
+  df$z <- c(y)
+  ggplot(df, aes(x = x, y = y, z = z)) +
+    xlim(0, 10) +
+    ylim(0, 10) +
+    geom_contour_filled(binwidth = 1) +
+    scale_fill_viridis_d(option = "plasma") +
+    labs(
+      x = "x1",
+      y = "x2",
+      fill = ""
+    ) +
+    theme_minimal()
 }
 ```
 
 ```{r}
 #| label: linear_function_2D
+
 # Define a linear function with two inputs, x1 and x2
 linear_function_2D <- function(x1, x2, beta, omega1, omega2) {
   # TODO -- replace the code line below with formula for 2D linear equation
-  y <- beta + omega1 * x1 + omega2 * x2
-  y
+  beta + omega1 * x1 + omega2 * x2
 }
 ```
 
 ```{r}
-#| label: Plot 2D linear function
-#| fig-width: 6
-#| fig-asp: 1
+#| label: plot-2D-linear-function
+
 # Plot the 2D function
 
 # Make 2D array of x and y points
@@ -105,32 +118,10 @@ x2 <- seq(0.0, 10.0, 0.1)
 beta <- 0.0
 omega1 <- 1.0
 omega2 <- -0.5
-y <- outer(x1, x2, function(x, y) { linear_function_2D(x, y, beta, omega1, omega2) })
+y <- outer(x1, x2, function(x, y) linear_function_2D(x, y, beta, omega1, omega2) )
 
 # Draw the function.
 draw_2D_function(x1, x2, y)
-
-# df <- expand.grid(x = x1, y = x2)
-# xyz.func <- function(x, y) { linear_function_2D(x, y, beta, omega1, omega2)}
-# df$z <- with(df, xyz.func(x, y))
-
-# df <- expand.grid(x = x1, y = x2) |> dplyr::mutate(z = linear_function_2D(x, y, beta, omega1, omega2))
-
-df <- expand.grid(x = x1, y = x2)
-df <- dplyr::mutate(df, z = linear_function_2D(x, y, beta, omega1, omega2))
-
-ggplot(df, aes(x = x, y = y, z = z)) +
-  xlim(0, 10) +
-  ylim(0, 10) +
-  geom_contour_filled(bins = 20) +
-#  scale_fill_viridis_d() + # Using a viridis color scale for better perception
-  scale_fill_viridis_d(name = "Z Value") +
-  labs(
-    x = "x1",
-    y = "x2",
-    fill = ""
-  )
-#  theme_minimal()
 
 # TODO
 # Predict what this plot will look like if you set omega_1 to zero
@@ -143,6 +134,20 @@ ggplot(df, aes(x = x, y = y, z = z)) +
 # TODO
 # Predict what this plot will look like if you set beta to -5
 # Change the code and see if you are correct
+```
+
+```{r}
+#| label: simulate-np.meshgrid
+#| eval: false
+
+# like np.meshgrid, turn vector into matrix and do calculation on matrix
+x11 <- replicate(length(x2), x1)
+x22 <- matrix(rep(x2, times = length(x1)),
+              nrow = length(x1),
+              ncol = length(x2),
+              byrow = TRUE)
+yy <- linear_function_2D(x11, x22, beta, omega1, omega2)
+draw_2D_function(x1, x2, yy)
 ```
 
 Often we will want to compute many linear functions at the same time. For example, we might have three inputs, $x_1$, $x_2$, and $x_3$ and want to compute two linear functions giving $y_1$ and $y_2$. Of course, we could do this by just running each equation separately,
@@ -170,8 +175,7 @@ for short. Here, lowercase bold symbols are used for vectors. Upper case bold sy
 # Define a linear function with three inputs, x1, x2, and x_3
 linear_function_3D <- function(x1, x2, x3, beta, omega1, omega2, omega3) {
   # TODO -- replace the code below with formula for a single 3D linear equation
-  y <- beta + omega1 * x1 + omega2 * x2 + omega3 * x3
-  y
+  beta + omega1 * x1 + omega2 * x2 + omega3 * x3
 }
 ```
 
@@ -194,22 +198,18 @@ x2 <- -1
 x3 <- 2
 
 # Compute using the individual equations
-y1 = linear_function_3D(x1,x2,x3,beta1,omega11,omega12,omega13)
-y2 = linear_function_3D(x1,x2,x3,beta2,omega21,omega22,omega23)
-print("Individual equations")
-sprintf("y1 = %.3f", y1)
-sprintf("y2 = %.3f", y2)
+y1 <- linear_function_3D(x1,x2,x3,beta1,omega11,omega12,omega13)
+y2 <- linear_function_3D(x1,x2,x3,beta2,omega21,omega22,omega23)
+cat(paste("Individual equations",  sprintf("y1 = %.3f", y1), sprintf("y2 = %.3f", y2), sep = "\n"))
 
 # Define vectors and matrices
 beta_vec <- c(beta1, beta2)
-omega_mat = matrix(c(omega11, omega12, omega13, omega21, omega22, omega23), 2, byrow=TRUE)
+omega_mat <- matrix(c(omega11, omega12, omega13, omega21, omega22, omega23), 2, byrow = TRUE)
 x_vec <- c(x1, x2, x3)
 
 # Compute with vector/matrix form
 y_vec <- beta_vec + omega_mat %*% x_vec
-print("Matrix/vector form")
-sprintf("y1 = %.3f", y_vec[1])
-sprintf("y2 = %.3f", y_vec[2])
+cat(paste("Matrix/vector form", sprintf("y1 = %.3f", y_vec[1]), sprintf("y2 = %.3f", y_vec[2]), sep = "\n"))
 ```
 
 # Questions
@@ -225,6 +225,8 @@ Throughout the book, we'll be using some special functions (see Appendix B.1.3).
 We'll start with the exponential function $y=\exp[x]=e^x$ which maps the real line $[-\infty,+\infty]$ to non-negative numbers $[0,+\infty]$.
 
 ```{r}
+#| label: exponential-function
+
 # Draw the exponential function
 
 # Define an array of x values from -5 to 5 with increments of 0.01
@@ -232,8 +234,11 @@ x <- seq(-5.0, 5.0, 0.01)
 y <- exp(x)
 
 # Plot this function
-plot(x, y, type = "l", xlim = c(-5, 5), ylim = c(0, 100),
-     xlab = "x", ylab = "exp[x]", lwd = 2, col = "red")
+ggplot(data.frame(x = x, y = y), aes(x = x, y = y)) +
+  geom_line(linewidth = 0.5, color = "red3") +
+  xlab("x") +
+  ylab(bquote(exp(x))) +
+  coord_cartesian(xlim = c(-5, 5), ylim = c(0, 100))
 ```
 
 # Questions
@@ -247,6 +252,8 @@ plot(x, y, type = "l", xlim = c(-5, 5), ylim = c(0, 100),
 Now let's consider the logarithm function $y=\log[x]$. Throughout the book we always use natural (base $e$) logarithms. The log function maps non-negative numbers $[0,\infty]$ to real numbers $[-\infty,\infty]$. It is the inverse of the exponential function. So when we compute $\log[x]$ we are really asking "What is the number $y$ so that $e^y=x$?"
 
 ```{r}
+#| label: logarithm-function
+
 # Draw the logarithm function
 
 # Define an array of x values from -5 to 5 with increments of 0.01
@@ -254,8 +261,11 @@ x <- seq(0.01, 5.0, 0.01)
 y <- log(x)
 
 # Plot this function
-plot(x, y, type = "l", xlim = c(0, 5), ylim = c(-5, 5),
-     xlab = "x", ylab = "log[x]", lwd = 2, col = "red")
+ggplot(data.frame(x = x, y = y), aes(x = x, y = y)) +
+  geom_line(linewidth = 0.5, color = "red3") +
+  xlab("x") +
+  ylab(bquote(log(x))) +
+  coord_cartesian(xlim = c(0, 5), ylim = c(-5, 5))
 ```
 
 # Questions
