@@ -1,27 +1,27 @@
 ---
 title: "4.2 Clipping Functions"
 author: "CF Wang"
-date: "2025-12-24"
+date: "2026-01-18"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
-#| fig-width: 8
-#| fig-height: 6
-#| out-width: 80%
+#| include: false
+#| fig-width: 6
+#| fig-asp: 0.618
 #| fig-align: center
+#| out-width: 70%
+
+library(ggplot2)
+library(patchwork)
 ```
 
-```{r}
-#| label: load library
-#| echo: false
-library(ggplot2)
-```
+The purpose of this notebook is to understand how a neural network with two hidden layers build more complicated functions by clipping and recombining the representations at the intermediate hidden variables.
 
 ```{r}
 #| label: ReLU
+
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
   ifelse(preactivation > 0, preactivation, 0)
@@ -30,10 +30,11 @@ ReLU <- function(preactivation) {
 
 ```{r}
 #| label: shallow_1_1_3_3
+
 # Define a deep neural network with, one input, one output, two hidden layers and three hidden units (eqns 4.7-4.9)
 # To make this easier, we store the parameters in vecotr and matrix, and put index 0 to last
 # so phi_0 = phi[4] and psi_3,3 = psi[3,3] etc.
-shallow_1_1_3_3 <-function (x, activation_fn, phi, psi, theta) {
+shallow_1_1_3_3 <-function(x, activation_fn, phi, psi, theta) {
   # TODO -- You write this function
   # Replace the skeleton code below.
 
@@ -67,39 +68,63 @@ shallow_1_1_3_3 <-function (x, activation_fn, phi, psi, theta) {
   y = phi[4] + phi1_h1_prime + phi2_h2_prime + phi3_h3_prime ;
  
   # Return everything we have calculated
-  return(list(
-    x = x, y = y,
+  list(x = x, y = y,
     layer2_pre_1 = layer2_pre_1, layer2_pre_2 = layer2_pre_2, layer2_pre_3 = layer2_pre_3,
     h1_prime = h1_prime, h2_prime = h2_prime, h3_prime = h3_prime,
-    phi1_h1_prime = phi1_h1_prime, phi2_h2_prime = phi2_h2_prime, phi3_h3_prime = phi3_h3_prime
-    )
-  )
+    phi1_h1_prime = phi1_h1_prime, phi2_h2_prime = phi2_h2_prime, phi3_h3_prime = phi3_h3_prime)
 }
 ```
 
 ```{r}
-#| label: plot nerual two layers
-#| echo: false
+#| label: plot-nerual-two-layers
 
 # # Plot two layer neural network as in figure 4.5
-plot_neural_two_layers <- function (x, y, layer2_pre_1, layer2_pre_2, layer2_pre_3, h1_prime, h2_prime, h3_prime, phi1_h1_prime, phi2_h2_prime, phi3_h3_prime) {
-  # Plot intermediate plots if flag set
-  par(mfrow = c(3, 3))
-    
-  plot(x, layer2_pre_1, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[10]+psi[11]*h[1]+psi[12]*h[2]+psi[13]*h[3]), las = 1, col = "red")
-  plot(x, layer2_pre_2, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[20]+psi[21]*h[1]+psi[22]*h[2]+psi[23]*h[3]), las = 1, col = "blue")
-  plot(x, layer2_pre_3, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(psi[30]+psi[31]*h[1]+psi[32]*h[2]+psi[33]*h[3]), las = 1, col = "green")
-    
-    plot(x, h1_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[1]*"'"), las = 1, col = "red")
-    plot(x, h2_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[2]*"'"), las = 1, col = "blue")
-    plot(x, h3_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = "", ylab = expression(h[3]*"'"), las = 1, col = "green")
-    
-    plot(x, phi1_h1_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi1[1]*h[1]*"'"), las = 1, col = "red")
-    plot(x, phi2_h2_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi[2]*h[2]*"'"), las = 1, col = "blue")
-    plot(x, phi3_h3_prime, type = "l", xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression(phi[3]*h[3]*"'"), las = 1, col = "green")
+plot_neural_two_layers <- function(x, y, layer2_pre_1, layer2_pre_2, layer2_pre_3, h1_prime, h2_prime, h3_prime, phi1_h1_prime, phi2_h2_prime, phi3_h3_prime) {
   
-  par(mfrow = c(1, 1))
-  plot(x, y, type = "l", las = 1, xlim = c(0, 1), ylim = c(-1, 1), xlab = expression("Input, "*x), ylab = expression("Output, "*y), las = 1, lwd = 2, col = "skyblue3")
+  p1 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab("") + ylab(expression(psi[10]+psi[11]*h[1]+psi[12]*h[2]+psi[13]*h[3])) +
+    geom_line(mapping = aes(x = x, y = layer2_pre_1), color = "red3", linewidth = 0.75)
+  p2 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab("") + ylab(expression(psi[20]+psi[21]*h[1]+psi[22]*h[2]+psi[23]*h[3])) +
+    geom_line(mapping = aes(x = x, y = layer2_pre_2), color = "blue3", linewidth = 0.75)
+  p3 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab("") + ylab(expression(psi[30]+psi[31]*h[1]+psi[32]*h[2]+psi[33]*h[3])) +
+    geom_line(mapping = aes(x = x, y = layer2_pre_3), color = "green3", linewidth = 0.75)
+    
+  p4 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab("") + ylab(expression(h[1]*"'")) +
+    geom_line(mapping = aes(x = x, y = h1_prime), color = "red3", linewidth = 0.75)
+  p5 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab("") + ylab(expression(h[2]*"'")) +
+    geom_line(mapping = aes(x = x, y = h2_prime), color = "blue3", linewidth = 0.75)
+  p6 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab("") + ylab(expression(h[3]*"'")) +
+    geom_line(mapping = aes(x = x, y = h3_prime), color = "green3", linewidth = 0.75)
+    
+  p7 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab(expression("Input, "*x)) + ylab(expression(phi1[1]*h[1]*"'")) +
+    geom_line(mapping = aes(x = x, y = phi1_h1_prime), color = "red3", linewidth = 0.75)
+  p8 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab(expression("Input, "*x)) + ylab(expression(phi1[2]*h[2]*"'")) +
+    geom_line(mapping = aes(x = x, y = phi2_h2_prime), color = "blue3", linewidth = 0.75)
+  p9 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab(expression("Input, "*x)) + ylab(expression(phi1[3]*h[3]*"'")) +
+    geom_line(mapping = aes(x = x, y = phi3_h3_prime), color = "green3", linewidth = 0.75)
+    
+  p10 <- ggplot() + xlim(range(x)) + ylim(c(-1, 1)) +
+    xlab(expression("Input, "*x)) + ylab(expression("Output, "*y)) +
+    geom_line(mapping = aes(x = x, y = y), color = "skyblue3", linewidth = 0.75)
+  
+  
+  grid_layout <- "
+  ABC
+  DEF
+  GHI
+  JJ#
+  JJ#
+  "
+  p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 +
+    plot_layout(design = grid_layout)
 }
 ```
 
@@ -107,8 +132,8 @@ Now let's define the parameters and visualize the network
 
 ```{r}
 #| fig-width: 8
-#| fig-height: 8
-#| fig-asp: 1
+#| fig-asp: 1.5
+
 # Define parameters (note first dimension of theta and psi is padded to make indices match
 # notation in book)
 theta <- matrix(0, nrow = 4, ncol = 2)
@@ -125,14 +150,14 @@ phi[4] <- 0.0; phi[1] <- 0.5; phi[2] <- -1.5; phi [3] <- 2.2
 
 # psi[1,0] = 0.5
 # psi[2,0] = 0.2;  psi[2,1] = -2.0; psi[2,2] = -1.2; psi[2,3]=8.0
-phi[3] = -2.2
+phi[3] <- -2.2
 
 # Define a range of input values
-x = seq(0, 1, 0.01)
+x <- seq(0, 1, 0.01)
 
 # Run the neural network
 #y, layer2_pre_1, layer2_pre_2, layer2_pre_3, h1_prime, h2_prime, h3_prime, phi1_h1_prime, phi2_h2_prime, phi3_h3_prime \
-nn = shallow_1_1_3_3(x, ReLU, phi, psi, theta)
+nn <- shallow_1_1_3_3(x, ReLU, phi, psi, theta)
 
 # And then plot it
 plot_neural_two_layers(x, nn$y, nn$layer2_pre_1, nn$layer2_pre_2, nn$layer2_pre_3, nn$h1_prime, nn$h2_prime, nn$h3_prime, nn$phi1_h1_prime, nn$phi2_h2_prime, nn$phi3_h3_prime)
