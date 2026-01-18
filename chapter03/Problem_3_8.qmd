@@ -1,70 +1,27 @@
 ---
 title: "Problem 3.8"
-author: CF Wang
-date: 2025-12-20
+author: "CF Wang"
+date: "2025-01-18"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
-#| fig-width: 8
-#| fig-height: 6
-#| out-width: 80%
+#| include: false
+#| fig-width: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: load library
-#| echo: false
 library(ggplot2)
 library(patchwork)
-```
-
-# ReLU function
-
-```{r}
-#| label: ReLU
-# Define the Rectified Linear Unit (ReLU) function
-ReLU <- function(preactivation) {
-  ifelse(preactivation > 0, preactivation, 0)
-}
-```
-
-```{r}
-#| label: Test ReLU function
-#| echo: false
-#| fig-width: 6
-#| fig-height: 6
-# Make an array of inputs
-z <- seq(-5, 5, 0.01)
-RelU_z <- ReLU(z)
-
-# Plot the ReLU function
-plot(0, xlim = c(-5, 5), ylim = c(-5, 5),
-     xlab = expression(paste("z")),
-     ylab = expression(paste("ReLU[", z, "]")),
-     axes = TRUE, type = "n")
-lines(z, RelU_z, lwd = 2, col = "red")
-
-ggplot() +
-  xlim(c(-5, 5)) +
-  ylim(c(-5, 5)) +
-  xlab("z") +
-  ylab("ReLU[z]") +
-  geom_line(
-    data = data.frame(x = z, y = RelU_z),
-    mapping = aes(x = x, y = y),
-    color = "red",
-    linewidth = 0.75) +
-  theme_minimal()
 ```
 
 # Shallow neural network
 
 ```{r}
 #| label: shallow_1_1_3
-#| echo: false
+
 # Define a shallow neural network with, one input, one output, and three hidden units
 shallow_1_1_3 <- function(x, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31) {
   # figure 3.3 a-c
@@ -86,45 +43,86 @@ shallow_1_1_3 <- function(x, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10
   y <- phi_0 + w_act_1 + w_act_2 + w_act_3
 
   # Return everything we have calculated
-  return(data.frame(x = x, y = y, pre1 = pre_1, pre2 = pre_2, pre3 = pre_3, act1 = act_1, act2 = act_2, act3 = act_3, wact1 = w_act_1, wact2 = w_act_2, wact3 = w_act_3))
+  data.frame(x = x, y = y, pre1 = pre_1, pre2 = pre_2, pre3 = pre_3, act1 = act_1, act2 = act_2, act3 = act_3, wact1 = w_act_1, wact2 = w_act_2, wact3 = w_act_3)
 }
 ```
 
 ```{r}
-#| label: plot neural
+#| label: plot-neural
 #| echo: false
+
 # Plot the shallow neural network.  We'll assume input in is range [0,1] and output [-1,1]
 # If the plot_all flag is set to true, then we'll plot all the intermediate stages as in Figure 3.3
-plot_neural <- function(x, nn_result, plot_all = FALSE, x_data = NULL, y_data = NULL) {
-
-  # Plot intermediate plots if flag set
-  if (plot_all) {
-    par(mfrow = c(3, 3))
-    
-    plot(x, nn_result$pre1, type = "l", xlim = c(0, 2), ylim = c(-1, 1), ylab = "Preactivation", col = "red")
-    plot(x, nn_result$pre2, type = "l", xlim = c(0, 2), ylim = c(-1, 1), ylab = "Preactivation", col = "blue")
-    plot(x, nn_result$pre3, type = "l", xlim = c(0, 2), ylim = c(-1, 1), ylab = "Preactivation", col = "green")
-    
-    plot(x, nn_result$act1, type = "l", xlim = c(0, 2), ylim = c(-1, 1), ylab = "Activation", col = "red")
-    plot(x, nn_result$act2, type = "l", xlim = c(0, 2), ylim = c(-1, 1), ylab = "Activation", col = "blue")
-    plot(x, nn_result$act3, type = "l", xlim = c(0, 2), ylim = c(-1, 1), ylab = "Activation", col = "green")
-    
-    plot(x, nn_result$wact1, type = "l", xlim = c(0, 2), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "red")
-    plot(x, nn_result$wact2, type = "l", xlim = c(0, 2), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "blue")
-    plot(x, nn_result$wact3, type = "l", xlim = c(0, 2), ylim = c(-1, 1), xlab = "Input, x", ylab = "Weighted Act", col = "green")
+plot_neural <- function(nn_result, plot_all = FALSE, x_data = NULL, y_data = NULL) {
+  if (is.null(x_data)) {
+    p0 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) + xlab("Input, x") + ylab("Output, y") +
+      geom_line(mapping = aes(x = x, y = y), color = "skyblue", linewidth = 1.0)
+  } else {
+    p0 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) + xlab("Input, x") + ylab("Output, y") +
+      geom_line(mapping = aes(x = x, y = y), color = "skyblue", linewidth = 1.0) +
+      geom_point(data = data.frame(x = x_data, y = y_data), mapping = aes(x = x, y = y), size = 3, color = "purple")
   }
   
-  par(mfrow = c(1, 1))
-  plot(x, nn_result$y, type = "l", xlim = c(0, 2), ylim = c(-1, 1), xlab = "Input, x", ylab = "Output, y", lwd = 2, col = "skyblue")
-  if (!is.null(x_data)) {
-    points(x_data, y_data, pch = 19, cex = 1.5, col = "purple")
+  # Plot intermediate plots if flag set
+  if (plot_all) {
+    p1 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("") + ylab("Preactivation") +
+      geom_line(mapping = aes(x = x, y = pre1), color = "red3", linewidth = 0.75)
+    p2 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("") + ylab("Preactivation") +
+      geom_line(mapping = aes(x = x, y = pre2), color = "blue3", linewidth = 0.75)
+    p3 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("") + ylab("Preactivation") +
+      geom_line(mapping = aes(x = x, y = pre3), color = "green3", linewidth = 0.75)
+    
+    p4 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("") + ylab("Activation") +
+      geom_line(mapping = aes(x = x, y = act1), color = "red3", linewidth = 0.75)
+    p5 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("") + ylab("Activation") +
+      geom_line(mapping = aes(x = x, y = act2), color = "blue3", linewidth = 0.75)
+    p6 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("") + ylab("Activation") +
+      geom_line(mapping = aes(x = x, y = act3), color = "green3", linewidth = 0.75)
+    
+    p7 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("Input, x") + ylab("Weighted Act") +
+      geom_line(mapping = aes(x = x, y = wact1), color = "red3", linewidth = 0.75)
+    p8 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("Input, x") + ylab("Weighted Act") +
+      geom_line(mapping = aes(x = x, y = wact2), color = "blue3", linewidth = 0.75)
+    p9 <- ggplot(nn_result) +
+      xlim(range(x)) + ylim(c(-1, 1)) +
+      xlab("Input, x") + ylab("Weighted Act") +
+      geom_line(mapping = aes(x = x, y = wact3), color = "green3", linewidth = 0.75)
+    
+    grid_layout <- "
+    ABC
+    DEF
+    GHI
+    JJ#
+    JJ#
+    "
+    p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p0 +
+      plot_layout(design = grid_layout)
+  } else {
+    p0
   }
 }
 ```
 
 ```{r}
-#| label: input of neural network
-#| echo: false
+#| label: input-of-neural-network
 
 # Now lets define some parameters and run the neural network
 theta_10 <- -0.2; theta_11 <-  0.4
@@ -137,18 +135,42 @@ x <- seq(0, 2, 0.01)
 ```
 
 # ReLU
+
 ```{r}
-#| label: run neural network with ReLU
-#| fig-width: 8
-#| fig-height: 8
+#| label: ReLU-function
+#| echo: false
+#| fig-width: 4
 #| fig-asp: 1
 
-# We run the neural network for each of these input values
-# y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
-nn_result = shallow_1_1_3(x, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+
+z <- seq(-5, 5, 0.1)
+RelU_z <- ReLU(z)
+
+ggplot() +
+  xlim(c(-5, 5)) +
+  ylim(c(-5, 5)) +
+  xlab("z") +
+  ylab("ReLU[z]") +
+  geom_line(
+    mapping = aes(x = z, y = RelU_z),
+    color = "red3",
+    linewidth = 0.75)
+```
+
+```{r}
+#| label: neural-network-ReLU
+#| echo: false
+#| fig-width: 8
+#| fig-asp: 1.5
+
+nn_result <- shallow_1_1_3(x, ReLU, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
 
 # And then plot it
-plot_neural(x, nn_result, plot_all = TRUE)
+plot_neural(nn_result, plot_all = TRUE)
 ```
 
 # Heaviside step function
@@ -159,50 +181,30 @@ $$
 
 ```{r}
 #| label: Heaviside
+#| fig-width: 4
+#| fig-asp: 1
+
 heaviside <- function(preactivation) {
   ifelse(preactivation < 0, 0, 1)
 }
-```
-
-```{r}
-#| label: Test Heaviside
-#| fig-width: 6
-#| fig-height: 6
-#| echo: false
 z <- seq(-5, 5, 0.01)
 heaviside_z <- heaviside(z)
 
-plot(0, xlim = c(-5, 5), ylim = c(-5, 5),
-     xlab = expression(paste("z")),
-     ylab = expression(paste("heaviside[", z, "]")),
-     axes = TRUE, type = "n")
-lines(z, heaviside_z, lwd = 2, col = "red")
-
 ggplot() +
-  xlim(c(-5, 5)) +
-  ylim(c(-5, 5)) +
-  xlab("z") +
-  ylab("heaviside[z]") +
-  geom_line(
-    data = data.frame(x = z, y = heaviside_z),
-    mapping = aes(x = x, y = y),
-    color = "red",
-    linewidth = 0.75) +
-  theme_minimal()
+  geom_line(aes(x = z, y = heaviside_z), color = "red3")
 ```
 
 ```{r}
-#| label: run neural network with Heaviside
+#| label: neural-network-Heaviside
+#| echo: false
 #| fig-width: 8
-#| fig-height: 8
-#| fig-asp: 1
+#| fig-asp: 1.5
 
 # We run the neural network for each of these input values
 # y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
-nn_result = shallow_1_1_3(x, heaviside, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+nn_result <- shallow_1_1_3(x, heaviside, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
 
-# And then plot it
-plot_neural(x, nn_result, plot_all = TRUE)
+plot_neural(nn_result, plot_all = TRUE)
 ```
 
 # Rectangular function
@@ -213,24 +215,15 @@ $$
 
 ```{r}
 #| label: Rectangular
+#| echo: false
+#| fig-width: 4
+#| fig-asp: 1
+
 rectangular <- function(preactivation) {
   ifelse(preactivation >= 0 & preactivation <= 1, 1, 0)
 }
-```
-
-```{r}
-#| label: Test rectangular
-#| fig-width: 6
-#| fig-height: 6
-#| echo: false
 z <- seq(-5, 5, 0.01)
 rectangular_z <- rectangular(z)
-
-plot(0, xlim = c(-5, 5), ylim = c(-5, 5),
-     xlab = expression(paste("z")),
-     ylab = expression(paste("rectangular[", z, "]")),
-     axes = TRUE, type = "n")
-lines(z, rectangular_z, lwd = 2, col = "red")
 
 ggplot() +
   xlim(c(-5, 5)) +
@@ -238,25 +231,22 @@ ggplot() +
   xlab("z") +
   ylab("rectangualr[z]") +
   geom_line(
-    data = data.frame(x = z, y = rectangular_z),
-    mapping = aes(x = x, y = y),
+    mapping = aes(x = z, y = rectangular_z),
     color = "red",
-    linewidth = 0.75) +
-  theme_minimal()
+    linewidth = 0.75)
 ```
 
 ```{r}
 #| label: run neural network with rectangular
 #| fig-width: 8
-#| fig-height: 8
-#| fig-asp: 1
+#| fig-asp: 1.5
 
 # We run the neural network for each of these input values
 # y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
-nn_result = shallow_1_1_3(x, rectangular, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+nn_result <- shallow_1_1_3(x, rectangular, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
 
 # And then plot it
-plot_neural(x, nn_result, plot_all = TRUE)
+plot_neural(nn_result, plot_all = TRUE)
 ```
 
 # Hyperbolic tangent function
@@ -264,13 +254,12 @@ plot_neural(x, nn_result, plot_all = TRUE)
 ```{r}
 #| label: run neural network with tanh
 #| fig-width: 8
-#| fig-height: 8
-#| fig-asp: 1
+#| fig-asp: 1.5
 
 # We run the neural network for each of these input values
 # y, pre_1, pre_2, pre_3, act_1, act_2, act_3, w_act_1, w_act_2, w_act_3 = \
-nn_result = shallow_1_1_3(x, tanh, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
+nn_result <- shallow_1_1_3(x, tanh, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_20, theta_21, theta_30, theta_31)
 
 # And then plot it
-plot_neural(x, nn_result, plot_all = TRUE)
+plot_neural(nn_result, plot_all = TRUE)
 ```
