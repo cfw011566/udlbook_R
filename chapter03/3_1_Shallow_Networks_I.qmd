@@ -16,6 +16,8 @@ library(ggplot2)
 library(patchwork)
 ```
 
+The purpose of this notebook is to gain some familiarity with shallow neural networks with 1D inputs. It works through an example similar to figure 3.3 and experiments with different activation functions.
+
 Let's first construct the shallow neural network with one input, three hidden units, and one output described in section 3.1 of the book.
 
 ```{r}

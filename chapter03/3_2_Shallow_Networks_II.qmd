@@ -16,6 +16,8 @@ library(ggplot2)
 library(patchwork)
 ```
 
+The purpose of this notebook is to gain some familiarity with shallow neural networks with 2D inputs. It works through an example similar to figure 3.8 and experiments with different activation functions.
+
 ```{r}
 #| label: plot-2D-neural-network
 

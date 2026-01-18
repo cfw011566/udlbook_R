@@ -1,26 +1,22 @@
 ---
 title: "3.3 -- Shallow Networks Regions"
 author: "CF Wang"
-date: "2025-12-20"
+date: "2026-01-18"
 format: html
 ---
 
-
 ```{r}
 #| label: setup
-#| echo: true
-#| fig-width: 8
-#| fig-height: 6
-#| out-width: 80%
+#| fig-width: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: dependent library
-#| echo: false
 library(ggplot2)
 library(scales)
 ```
+
+The purpose of this notebook is to compute the maximum possible number of linear regions as seen in figure 3.9 of the book.
 
 The number of regions  created by a shallow neural network with  inputs and  hidden units is given by Zaslavsky's formula:
 
@@ -29,10 +25,15 @@ N = \sum_{j=0}^{D_i}\binom{D}{j} = \sum_{j}^{D_i}\frac{D!}{(D-j)!j!}
 $$
 
 ```{r}
-#| label: number of regions
+#| label: number_regions
+
 number_regions <- function(Di, D) {
-  sum(choose(D,seq(0,Di)))
+  sum(choose(D, seq(0, Di)))
 }
+```
+
+```{r}
+#| label: test-number_regions
 
 # Calculate the number of regions for 2D input (Di=2) and 3 hidden units (D=3) as in figure 3.8j
 N <- number_regions(2, 3)
@@ -48,50 +49,33 @@ This works but there is a complication. If the number of hidden units $D$ is few
 Let's demonstrate this:
 
 ```{r}
-# Depending on how you implemented it, the calculation may fail when (not to worry...)
+#| label: number_regions-could-fail
+
+# Depending on how you implemented it, the calculation may fail when Di > D (not to worry...)
 N <- number_regions(10, 8)
 sprintf("Di=10, D=8, Number of regions = %.0f, True value = 256", N)
 ```
 
 ```{r}
-#| label: figure 3.9a
-#| fig-width: 8
-#| fig-height: 6
+#| label: figure-3.9a
 #| warning: false
+
 # Now let's plot the graph from figure 3.9a
 dims <- c(1, 5, 10, 50, 100)
 regions <- array(c(rep(0, length(dims)), rep(0, 1000)), dim = c(length(dims), 1000))
 for (c_dim in seq(length(dims))) {
   D_i <- dims[c_dim]
-  sprintf("Counting regions for %d input dimensions", D_i)
+  cat(sprintf("Counting regions for %d input dimensions\n", D_i))
   for (D in seq(1000)) {
     regions[c_dim, D] <- number_regions(min(D_i,D), D)
   }
 }
 
-plot(0, type = "l", log = "y", xlim = c(0, 1000), ylim = c(1e1, 1e150),
-     xlab = "Number of hidden units, D",
-     ylab = "Number of regions, N")
-lines(regions[1,], lwd = 2, col = "black")
-lines(regions[2,], lwd = 2, col = "blue3")
-lines(regions[3,], lwd = 2, col = "magenta3")
-lines(regions[4,], lwd = 2, col = "cyan3")
-lines(regions[5,], lwd = 2, col = "yellow3")
-legend("topleft",
-       legend = c(expression(D[i]==1), expression(D[i]==5), expression(D[i]==10),
-                  expression(D[i]==50), expression(D[i]==100)),
-       col = c("black", "blue3", "magenta3", "cyan3", "yellow3"),
-       lty = 1, lwd = 2)
-
 colors <- c("Di=1" = "black", "Di=5" = "blue3", "Di=10" = "magenta3", "Di=50" = "cyan3", "Di=100" = "yellow3")
 xv <- 1:1000
 ggplot() +
   xlim(0, 1000) + ylim(1e1, 1e150) +
-  scale_y_log10() +
-  scale_y_continuous(
-    trans = "log10",
-    labels = trans_format("log10", math_format(10^.x)) # Format as powers of 10
-  ) +
+  scale_y_log10(labels = trans_format("log10", math_format(10^.x))) +
   geom_line(aes(xv, regions[1,], color = "Di=1")) +
   geom_line(aes(xv, regions[2,], color = "Di=5")) +
   geom_line(aes(xv, regions[3,], color = "Di=10")) +
@@ -119,13 +103,17 @@ ggplot() +
 ```
 
 ```{r}
-#| label: number of parameters
+#| label: number_parameters
+
 # Now let's compute and plot the number of regions as a function of the number of parameters as in figure 3.9b
 # First let's write a function that computes the number of parameters as a function of the input dimension and number of hidden units (assuming just one output)
 number_parameters <- function(D_i, D) {
   # TODO -- replace this code with the proper calculation
   (D_i + 1) * D + D + 1
 }
+```
+```{r}
+#| label: test-number_parameters
 
 # Now let's test the code
 N <- number_parameters(10, 8)
@@ -133,12 +121,11 @@ sprintf("Di=10, D=8, Number of parameters = %d, True value = 97", N)
 ```
 
 ```{r}
-#| label: figure 3.9b
-#| fig-width: 8
-#| fig-height: 6
+#| label: figure-3.9b
 #| warning: false
+
 # Now let's plot the graph from figure 3.9b (takes ~1min)
-dims <- c(1,5,10,50,100)
+dims <- c(1, 5, 10, 50, 100)
 regions <- array(c(rep(0, length(dims)), rep(0, 200)), dim = c(length(dims), 200))
 params <- array(c(rep(0, length(dims)), rep(0, 200)), dim = c(length(dims), 200))
 
@@ -154,29 +141,10 @@ for (c_dim in seq(length(dims))) {
   }
 }
 
-plot(0, type = "l", log = "y", xlim = c(0, 100000), ylim = c(1e1, 1e150),
-     xlab = "Number of parameters, D",
-     ylab = "Number of regions, N")
-#e.y <- seq(1,150,50)
-#at.y <- 10^e.y
-#axis(2, at = at.y, labels = as.expression(lapply(e.y, function(E) bquote(10^.(E)))))
-lines(params[1,], regions[1,], lwd = 2, col = "black")
-lines(params[2,], regions[2,], lwd = 2, col = "blue3")
-lines(params[3,], regions[3,], lwd = 2, col = "magenta3")
-lines(params[4,], regions[4,], lwd = 2, col = "cyan3")
-lines(params[5,], regions[5,], lwd = 2, col = "yellow3")
-legend("topleft",
-       legend = c(expression(D[i]==1), expression(D[i]==5), expression(D[i]==10),
-                  expression(D[i]==50), expression(D[i]==100)),
-       col = c("black", "blue3", "magenta3", "cyan3", "yellow3"),
-       lty = 1, lwd = 2)
-
 colors <- c("Di=1" = "black", "Di=5" = "blue3", "Di=10" = "magenta3", "Di=50" = "cyan3", "Di=100" = "yellow3")
 ggplot() +
   xlim(0, 100000) + ylim(1e1, 1e150) +
-  scale_y_log10() +
-  scale_y_continuous(
-    trans = "log10",
+  scale_y_log10(
     labels = trans_format("log10", math_format(10^.x)) # Format as powers of 10
   ) +
   labs(y = "Number of regions, N", x = "Number of parameters, D", color = NULL) +
@@ -196,7 +164,6 @@ ggplot() +
       expression(D[i]==100)
     )
   ) +
-  theme_minimal() +
   theme(
     legend.background = element_rect(fill = "white", color = "black", linewidth = 0.1),
     legend.position = c(0.02, 0.98),
