@@ -1,77 +1,74 @@
 ---
 title: "3.2 -- Shallow neural networks II"
 author: "CF Wang"
-date: "2025-11-30"
+date: "2026-01-18"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
-#| fig-width: 8
-#| fig-height: 6
-#| out-width: 80%
+#| fig-width: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| echo: false
 library(ggplot2)
 library(patchwork)
 ```
 
 ```{r}
-#| label: plot 2D neural network
+#| label: plot-2D-neural-network
+
 # Code to draw 2D function -- read it so you know what is going on, but you don't have to change it
 draw_2D_function <- function(x1, x2, y, title, add = FALSE) {
-  y_output <- matrix(y, ncol = length(x1))
-  filled.contour(x1, x2, y_output, color.palette = terrain.colors, add = add,
-                 plot.title = title(main = title,
-                                    xlab = "x1", ylab = "x2"))
+  df <- expand.grid(x = x1, y = x2)
+  df$z <- y 
+  ggplot(data = df, mapping = aes(x = x, y = y, z = z)) +
+    xlim(0, 10) +
+    ylim(0, 10) +
+    xlab("x1") +
+    ylab("x2") +
+    labs(title = title) +
+    scale_fill_viridis_d(option = "plasma") +
+    geom_contour_filled(
+      show.legend = FALSE,
+      bins = 128) +
+    geom_contour(
+      show.legend = FALSE,
+      bins = 20,
+      color = "grey",
+      linewidth = 0.25)
 }
 
 # Plot the shallow neural network.  We'll assume input in is range [0,10],[0,10] and output [-10,10]
 plot_neural_2_inputs <- function(x1, x2, nn_result) {
-  plot.new()
-  par(mar=c(1,1,1,1))
-  par(mfrow = c(3, 3))
-  draw_2D_function(x1, x2, nn_result$pre_1, "Preactivation")
-  draw_2D_function(x1, x2, nn_result$pre_2, "Preactivation")
-  draw_2D_function(x1, x2, nn_result$pre_3, "Preactivation")
-  draw_2D_function(x1, x2, nn_result$act_1, "Activation")
-  draw_2D_function(x1, x2, nn_result$act_2, "Activation")
-  draw_2D_function(x1, x2, nn_result$act_3, "Activation")
-  draw_2D_function(x1, x2, nn_result$w_act_1, "Weighted Act")
-  draw_2D_function(x1, x2, nn_result$w_act_2, "Weighted Act")
-  draw_2D_function(x1, x2, nn_result$w_act_3, "Weighted Act")
+  p1 <- draw_2D_function(x1, x2, nn_result$pre_1, "Preactivation")
+  p2 <- draw_2D_function(x1, x2, nn_result$pre_2, "Preactivation")
+  p3 <- draw_2D_function(x1, x2, nn_result$pre_3, "Preactivation")
+  p4 <- draw_2D_function(x1, x2, nn_result$act_1, "Activation")
+  p5 <- draw_2D_function(x1, x2, nn_result$act_2, "Activation")
+  p6 <- draw_2D_function(x1, x2, nn_result$act_3, "Activation")
+  p7 <- draw_2D_function(x1, x2, nn_result$w_act_1, "Weighted Act")
+  p8 <- draw_2D_function(x1, x2, nn_result$w_act_2, "Weighted Act")
+  p9 <- draw_2D_function(x1, x2, nn_result$w_act_3, "Weighted Act")
     
-  par(mfrow = c(1, 1))
-  draw_2D_function(x1, x2, nn_result$y, "Network output, y")
+  p0 <-draw_2D_function(x1, x2, nn_result$y, "Network output, y")
+  
+  grid_layout <- "
+  ABC
+  DEF
+  GHI
+  JJ#
+  JJ#
+  "
+  p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p0 +
+    plot_layout(design = grid_layout)
 }
 ```
 
 ```{r}
-#| label: neural with 2 inputs by ggplot
-g_draw_2D_function <- function(x1, x2, y, title) {
-}
+#| label: ReLU-function
 
-g_plot_neural_2_inputs <- function(nn_result) {
-  ggplot(nn_result, aes(x = x1, y = x2, z = y)) +
-    xlim(0, 10) +
-    ylim(0, 10) +
-    geom_contour_filled(bins = 20) +
-    labs(
-      x = "x1",
-      y = "x2",
-      fill = ""
-    ) +
-  theme_minimal()
-}
-```
-
-
-```{r}
-#| label: ReLU
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
   ifelse(preactivation > 0, preactivation, 0)
@@ -80,8 +77,9 @@ ReLU <- function(preactivation) {
 
 ```{r}
 #| label: shallow_2_1_3
+
 # Define a shallow neural network with, two input, one output, and three hidden units
-shallow_2_1_3 <- function(x1, x2, activation_fn, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32) {
+shallow_2_1_3 <- function(x1, x2, activation_fn, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32) {
   df_nn <- expand.grid(x1 = x1, x2 = x2)
   # TODO Replace the lines below to compute the three initial linear functions
   # (figure 3.8a-c) from the theta parameters.  These are the preactivations
@@ -106,32 +104,32 @@ shallow_2_1_3 <- function(x1, x2, activation_fn, phi_0,phi_1,phi_2,phi_3, theta_
   df_nn$y <- phi_0 + df_nn$w_act_1 + df_nn$w_act_2 + df_nn$w_act_3
 
   # Return everything we have calculated
-  return(df_nn)
+  df_nn
 }
 ```
 
 ```{r}
-#| label: run neural network
-#| fig-height: 6
-#| fig-width: 6
-#| fig-asp: 1
+#| label: run-shallow_2_1_3-network
+#| fig-width: 8
+#| fig-asp: 1.5
+
 # Now lets define some parameters and run the neural network
 theta_10 <- -4.0; theta_11 <-  0.9; theta_12 <-  0.0
 theta_20 <-  5.0; theta_21 <- -0.9; theta_22 <- -0.5
 theta_30 <- -7;   theta_31 <-  0.5; theta_32 <-  0.9
 phi_0 <- 0.0; phi_1 <- -2.0; phi_2 <- 2.0; phi_3 <- 1.5
 
-x1 = seq(0.0, 10.0, 0.1)
-x2 = seq(0.0, 10.0, 0.1)
+x1 <- seq(0.0, 10.0, 0.1)
+x2 <- seq(0.0, 10.0, 0.1)
 # x1, x2 = np.meshgrid(x1, x2)  # https://www.geeksforgeeks.org/numpy-meshgrid-function/
 
 # We run the neural network for each of these input values
-nn_result = shallow_2_1_3(x1, x2, ReLU, phi_0,phi_1,phi_2,phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
+nn_result <- shallow_2_1_3(x1, x2, ReLU, phi_0, phi_1, phi_2, phi_3, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
 
 # And then plot it
 # plot_neural_2_inputs(x1, x2, nn_result)
 
-g_plot_neural_2_inputs(nn_result)
+plot_neural_2_inputs(x1, x2, nn_result)
 ```
 
 How many different linear polytopes are made by this model? Identify each in the network output.
@@ -139,9 +137,48 @@ How many different linear polytopes are made by this model? Identify each in the
 Now we'll extend this model to have two outputs $y_1$ and $y_2$, each of which can be visualized with a separate heatmap. You will now have sets of parameters $\phi_{10}, \phi_{11}, \phi_{12}, \phi_{13}$ and $\phi_{20}, \phi_{21}, \phi_{22}, \phi_{23}$ that correspond to each of these outputs.
 
 ```{r}
-#| label: shallow with 2 inputs, 2 outputs
+#| label: plot_neural_2_inputs_2_outputs
+#
+# Plot the shallow neural network.  We'll assume input in is range [0,10],[0,10] and output [-10,10]
+plot_neural_2_inputs_2_outputs <- function(x1, x2, nn_result) {
+  p1 <- draw_2D_function(x1, x2, nn_result$pre_1, "Preactivation")
+  p2 <- draw_2D_function(x1, x2, nn_result$pre_2, "Preactivation")
+  p3 <- draw_2D_function(x1, x2, nn_result$pre_3, "Preactivation")
+  p4 <- draw_2D_function(x1, x2, nn_result$act_1, "Activation")
+  p5 <- draw_2D_function(x1, x2, nn_result$act_2, "Activation")
+  p6 <- draw_2D_function(x1, x2, nn_result$act_3, "Activation")
+  p7 <- draw_2D_function(x1, x2, nn_result$w_act_11, "Weighted Act 1")
+  p8 <- draw_2D_function(x1, x2, nn_result$w_act_12, "Weighted Act 1")
+  p9 <- draw_2D_function(x1, x2, nn_result$w_act_13, "Weighted Act 1")
+  p10 <- draw_2D_function(x1, x2, nn_result$w_act_21, "Weighted Act 2")
+  p11 <- draw_2D_function(x1, x2, nn_result$w_act_22, "Weighted Act 2")
+  p12 <- draw_2D_function(x1, x2, nn_result$w_act_23, "Weighted Act 2")
+    
+  p20 <-draw_2D_function(x1, x2, nn_result$y1, "Network output, y1")
+  p21 <-draw_2D_function(x1, x2, nn_result$y2, "Network output, y2")
+  
+  grid_layout <- "
+  ABC
+  DEF
+  GHI
+  JKL
+  MM#
+  MM#
+  MM#
+  NN#
+  NN#
+  NN#
+  "
+  p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p20 + p21 +
+    plot_layout(design = grid_layout)
+}
+```
+
+```{r}
+#| label: shallow_2_2_3
+
 # Define a shallow neural network with, two inputs, two outputs, and three hidden units
-shallow_2_2_3 <- function(x1, x2, activation_fn, phi_10,phi_11,phi_12,phi_13, phi_20,phi_21,phi_22,phi_23, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32) {
+shallow_2_2_3 <- function(x1, x2, activation_fn, phi_10, phi_11, phi_12, phi_13, phi_20, phi_21, phi_22, phi_23, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32) {
   df <- expand.grid(x1 = x1, x2 = x2)
   # TODO -- write this function -- replace the dummy code below
   df$pre_1 <- theta_10 + theta_11 * df$x1 + theta_12 * df$x2
@@ -160,35 +197,14 @@ shallow_2_2_3 <- function(x1, x2, activation_fn, phi_10,phi_11,phi_12,phi_13, ph
   df$y2 <- phi_20 + df$w_act_21 + df$w_act_22 + df$w_act_23
 
   # Return everything we have calculated
-  return(df)
+  df
 }
 ```
 
 ```{r}
-#
-g_plot_neural_2_inputs_2_outputs <- function(nn_df) {
-  ggplot(nn_df, aes(x = x1, y = x2, z = y1)) +
-    xlim(0, 10) +
-    ylim(0, 10) +
-    geom_contour_filled(bins = 20) +
-    labs(
-      x = "x1",
-      y = "x2",
-      fill = ""
-    ) +
-  theme_minimal()
-  
-  ggplot(nn_df, aes(x = x1, y = x2, z = y2)) +
-    xlim(0, 10) +
-    ylim(0, 10) +
-    geom_contour_filled(bins = 20) +
-    labs(
-      x = "x1",
-      y = "x2",
-      fill = ""
-    ) +
-  theme_minimal()
-}
+#| label: run-shallow_2_2_3-network
+#| fig-width: 8
+#| fig-asp: 2.0
 
 # Now lets define some parameters and run the neural network
 theta_10 <- -4.0; theta_11 <-  0.9; theta_12 <-  0.0
@@ -201,31 +217,8 @@ x1 <- seq(0.0, 10.0, 0.1)
 x2 <- seq(0.0, 10.0, 0.1)
 
 # We run the neural network for each of these input values
-nn_result = shallow_2_2_3(x1, x2, ReLU, phi_10,phi_11,phi_12,phi_13, phi_20,phi_21,phi_22,phi_23, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
+nn_result <- shallow_2_2_3(x1, x2, ReLU, phi_10, phi_11, phi_12, phi_13, phi_20, phi_21, phi_22, phi_23, theta_10, theta_11, theta_12, theta_20, theta_21, theta_22, theta_30, theta_31, theta_32)
 
 # And then plot it
-#g_plot_neural_2_inputs_2_outputs(nn_result)
-ggplot(nn_result, aes(x = x1, y = x2, z = y1)) +
-  xlim(0, 10) +
-  ylim(0, 10) +
-  geom_contour_filled(bins = 20) +
-  labs(
-    title = "Network output, y1",
-    x = "x1",
-    y = "x2",
-    fill = ""
-  ) +
-  theme_minimal()
-  
-ggplot(nn_result, aes(x = x1, y = x2, z = y2)) +
-  xlim(0, 10) +
-  ylim(0, 10) +
-  geom_contour_filled(bins = 20) +
-  labs(
-    title = "Network output, y2",
-    x = "x1",
-    y = "x2",
-    fill = ""
-  ) +
-  theme_minimal()
+plot_neural_2_inputs_2_outputs(x1, x2, nn_result)
 ```
