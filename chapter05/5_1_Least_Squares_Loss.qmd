@@ -1,19 +1,23 @@
 ---
 title: "5.1 Least Squares Loss"
 author: "CF Wang"
-date: "2025-12-30"
+date: "2026-01-19"
 format: html
 ---
 
 ```{r}
 #| label: setup
+#| include: false
 #| fig-width: 6
 #| fig-asp: 0.618
 #| fig-align: center
 #| out-width: 70%
 
 library(ggplot2)
+library(patchwork)
 ```
+
+This notebook investigates the least squares loss and the equivalence of maximum likelihood and minimum negative log likelihood.
 
 ```{r}
 #| label: ReLU and shallow neural network
@@ -39,7 +43,7 @@ shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
 ```
 
 ```{r}
-#| label: default parameters
+#| label: default-parameters
 
 # Get parameters for model -- we can call this function to easily reset them
 get_parameters <- function() {
@@ -59,29 +63,34 @@ get_parameters <- function() {
 ```
 
 ```{r}
-#| label: plot function
+#| label: plot-function
 
 # Utility function for plotting data
 plot_univariate_regression <- function(x_model, y_model, x_data = NULL, y_data = NULL, sigma_model = NULL, title = NULL) {
-  # no margin for plot
-  par(xaxs = "i", yaxs = "i")
-  # draw axis and its label
-  plot(0, type = "n", las = 1, xlim = c(0, 1), ylim = c(-1, 1),
-       # xaxp = c(-1, 1, 8),
-       yaxp = c(-1, 1, 8),
-       xlab = expression("Input, "*x),
-       ylab = expression("Output, "*y)
-  )
-  if (!is.null(title)) {
-    title(title)
-  }
+  y_model <- c(y_model)
+  p0 <- ggplot() +
+    xlab("Intput, x") + ylab("Output, y") +
+    xlim(c(0, 1)) +
+    scale_y_continuous(breaks = seq(-1, 1, by = 0.25), limits = c(-1, 1)) +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) 
+  
   if (!is.null(sigma_model)) {
-    polygon(c(x_model, rev(x_model)), c(y_model+2*sigma_model, rev(y_model)-2*sigma_model), col = "lightgray", border = NA)
+    y_points <- c(y_model+2*sigma_model, rev(y_model)-2*sigma_model)
+    y_points <- ifelse(y_points > 1, 1, y_points)
+    y_points <- ifelse(y_points < -1, -1, y_points)
+    p0 <- p0 + geom_polygon(
+      mapping = aes(x = c(x_model, rev(x_model)), y = y_points),
+      fill = "lightgray"
+    )
   }
-  lines(x_model, y_model, col = "skyblue3", lwd = 2)
+  
   if (!is.null(x_data)) {
-    points(x_data, y_data, pch = 19, cex = 1.25)
+    p0 <- p0 +
+      geom_point(mapping = aes(x = x_data, y = y_data), color = "black", size = 2)
   }
+  
+  p0 + geom_line(mapping = aes(x = x_model, y = y_model), color = "skyblue3", linewidth = 0.75)
 }
 ```
 
@@ -90,8 +99,8 @@ plot_univariate_regression <- function(x_model, y_model, x_data = NULL, y_data =
 We'll investigate a simple univariate regression situation with a single input $x$ and a single output $y$ as pictured in figures 5.4 and 5.5b.
  
 ```{r}
-#| fig-width: 6
-#| fig-height: 6
+#| label: univariate-regression
+#| fig-asp: 1
 
 # Let's create some 1D training data
 x_train <- c(0.09291784, 0.46809093, 0.93089486, 0.67612654, 0.73441752, 0.86847339, 0.49873225, 0.51083168, 0.18343972, 0.99380898, 0.27840809, 0.38028817, 0.12055708, 0.56715537, 0.92005746, 0.77072270, 0.85278176, 0.05315950, 0.87168699, 0.58858043)
@@ -106,14 +115,14 @@ sigma <- 0.2
 x_model <- seq(0, 1, 0.01)
 # Run the model to get values to plot and plot it.
 # y_model = shallow_nn(x_model, beta_0, omega_0, beta_1, omega_1)
-y_model = shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
+y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
 plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma)
 ```
 
 The blue line is the mean prediction of the model and the gray area represents plus/minus two standard deviations. This model fits okay, but could be improved. Let's compute the loss. We'll compute the the least squares error, the likelihood, the negative log likelihood.
 
 ```{r}
-#| label: normal distribution
+#| label: normal-distribution-function
 
 # Return probability under normal distribution
 normal_distribution <- function(y, mu, sigma) {
@@ -124,28 +133,24 @@ normal_distribution <- function(y, mu, sigma) {
   # Replace the line below
   exp(-(y-mu)^2 / 2.0 / sigma^2) / sqrt(2*pi*sigma^2)
 }
-     
 
 # Let's double check we get the right answer before proceeding
 sprintf("Correct answer = %3.3f, Your answer = %3.3f", 0.119, normal_distribution(1, -1, 2.3))
 ```
 
 ```{r}
-#| label: normal distribution plot
-#| fig-width: 6
-#| fig-height: 6
+#| label: plot-normal-distribution
 
 # Let's plot the Gaussian distribution.
 y_gauss <- seq(-5, 5, 0.1)
 mu <- 0; sigma <- 1.0
 gauss_prob <- normal_distribution(y_gauss, mu, sigma)
 
-par(xaxs = "i", yaxs = "i")
-plot(0, type = "n", las = 1, xlim = c(-5, 5), ylim = c(0, 1),
-     xlab = expression("Input, "*y),
-     ylab = expression("Probability "*Pr(y))
-)
-lines(y_gauss, gauss_prob, col = "skyblue3", lwd = 2)
+ggplot() +
+  xlim(c(-5, 5)) + ylim(c(0, 1)) +
+  xlab(expression("Input, "*y)) +
+  ylab(expression("Probability "*Pr(y))) +
+  geom_line(mapping = aes(x = y_gauss, y = gauss_prob), color = "skyblue3", linewidth = 0.75)
   
 # TODO
 # 1. Predict what will happen if we change to mu=1 and leave sigma=1
@@ -187,7 +192,7 @@ You can see that this gives a very small answer, even for this small 1D dataset,
 This is why we use negative log likelihood
 
 ```{r}
-#| label: negative log likelihood
+#| label: negative-log-likelihood
 
 # Return the negative log likelihood of the data under the model
 compute_negative_log_likelihood <- function(y_train, mu, sigma) {
@@ -214,7 +219,7 @@ sprintf("Correct answer = %9.9f, Your answer = %9.9f", 11.452419564, nll)
 For good measure, let's compute the sum of squares as well
 
 ```{r}
-#| label: squared distance
+#| label: squared-distance
 
 # Return the squared distance between the observed data (y_train) and the prediction of the model (y_pred)
 compute_sum_of_squares <- function(y_train, y_pred) {
@@ -238,9 +243,8 @@ sprintf("Correct answer = %9.9f, Your answer = %9.9f", 2.020992572, sum_of_squar
 Now let's investigate finding the maximum likelihood / minimum negative log likelihood / least squares solution. For simplicity, we'll assume that all the parameters are correct except one and look at how the likelihood, negative log likelihood, and sum of squares change as we manipulate the last parameter. We'll start with overall y offset, beta_1 (formerly phi_0)
 
 ```{r}
-#| label: comparison for different beta_1
-#| fig-width: 6
-#| fig-height: 6
+#| label: comparison-for-different-beta_1
+#| fig-asp: 4
 
 # Define a range of values for the parameter
 beta_1_vals <- seq(0, 1.0, 0.01)
@@ -252,6 +256,7 @@ sum_squares <- rep(0, times = length(beta_1_vals))
 # Initialise the parameters
 params <- get_parameters()
 sigma <- 0.2
+p <- NULL
 for (count in 1:length(beta_1_vals)) {
   # Set the value for the parameter
   params$beta_1[1,1] = beta_1_vals[count]
@@ -266,48 +271,45 @@ for (count in 1:length(beta_1_vals)) {
   if ((count-1) %% 20 == 0) {
     # Run the model to get values to plot and plot it.
     y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
-    plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("beta1=%.3f", params$beta_1[1,1]))
+    p <- p / plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("beta1=%.3f", params$beta_1[1,1]))
   }
 }
+p
 ```
 
 ```{r}
-#| fig-width: 6
-#| fig-height: 6
+#| fig-width: 8
+#| fig-asp: 0.5
 
 # Now let's plot the likelihood, negative log likelihood, and least squares as a function of the value of the offset beta1
 likelihood_color <- "red3"
 nll_color <- "skyblue3"
-#par(mfcol = c(1,2), las = 1)
-par(mar = c(5, 4, 4, 4) + 0.1, las = 1)
+scale <- max(nlls) / max(likelihoods)
 
-plot(beta_1_vals, likelihoods, type = "l", lwd = 2, col = likelihood_color,
-#     axes = FALSE,
-     xlab = "beta_1", ylab = "",
-     ylim = range(likelihoods))
-#axis(side = 1, at = pretty(range(beta_1_vals)))
+p1 <- ggplot() +
+  xlab("beta_1") +
+  scale_y_continuous(sec.axis = sec_axis(~.*scale, name = "negative log likelihood", breaks = seq(0, 140, 20)))+
+  geom_line(aes(x = beta_1_vals, y = likelihoods), color = likelihood_color) +
+  geom_line(aes(x = beta_1_vals, y = nlls/scale), color = nll_color) +
+  geom_vline(xintercept = beta_1_vals[which.max(likelihoods)], color = nll_color, linetype = 3) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.y.right = element_text(color = nll_color),
+        axis.ticks.y.right = element_line(color = nll_color),
+        axis.title.y.right = element_text(color = nll_color),
+        axis.text.y = element_text(color = likelihood_color),
+        axis.ticks.y = element_line(color = likelihood_color),
+        axis.title.y = element_text(color = likelihood_color))
 
-mtext("likelihood", las = 0, side = 2, line = 3, col = likelihood_color)
-axis(side = 2, at = pretty(range(likelihoods)), col.axis = likelihood_color, col.ticks = likelihood_color)
+p2 <- ggplot() +
+  ylim(c(1, 12)) +
+  xlab("beta_1") + ylab("sum of squares") +
+  geom_line(aes(x = beta_1_vals, y = sum_squares), color = "skyblue3")
 
-par(new = TRUE)
-plot(beta_1_vals, nlls, type = "l", lwd = 2, col = nll_color,
-     axes = FALSE, xlab = "", ylab = "",
-     ylim = range(nlls))
-axis(side = 4, at = pretty(range(nlls)), col.axis = nll_color, col.ticks = nll_color)
-mtext("negative log likelihood", las = 0, side = 4, line = 2, col = nll_color)
-
-abline(v = beta_1_vals[which.max(likelihoods)], lty = 3, col = nll_color)
-
-par(new = FALSE)
-plot(beta_1_vals, sum_squares, type = "l", lwd = 2, col = "skyblue3",
-     xlab = "beta_1", ylab = "sum of squqares")
+p1 + p2
 ```
 
 ```{r}
-#| label: best beta_1
-#| fig-width: 6
-#| fig-height: 6
+#| label: best_beta_1
 
 # Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood
 # and the least squares solutions
@@ -328,8 +330,7 @@ Let's do the same thing with the standard deviation parameter of our network. Th
 
 ```{r}
 #| label: comparison with different sigma
-#| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 4
 
 # Define a range of values for the parameter
 sigma_vals <- seq(0.1, 0.5, 0.005)
@@ -342,6 +343,7 @@ sum_squares <- rep(0, times = length(sigma_vals))
 params <- get_parameters()
 # Might as well set to the best offset
 params$beta_1[1,1] = 0.27
+p <- NULL
 for (count in 1:length(sigma_vals)) {
   # Set the value for the parameter
   sigma <- sigma_vals[count]
@@ -356,47 +358,45 @@ for (count in 1:length(sigma_vals)) {
   if ((count-1) %% 20 == 0) {
     # Run the model to get values to plot and plot it.
     y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
-    plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("sigma=%.3f", sigma))
+    p <- p / plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("sigma=%.3f", sigma))
   }
 }
+p
 ```
 
 ```{r}
-#| fig-width: 6
-#| fig-height: 6
+#| fig-width: 8
+#| fig-asp: 0.5
 
 # Now let's plot the likelihood, negative log likelihood, and least squares as a function of the value of the standard deviation sigma
 likelihood_color <- "red3"
 nll_color <- "skyblue3"
-par(mar = c(5, 4, 4, 4) + 0.1, las = 1)
+scale <- max(nlls) / max(likelihoods)
 
-plot(sigma_vals, likelihoods, type = "l", lwd = 2, col = likelihood_color,
-#     axes = FALSE,
-     xlab = "sigma", ylab = "",
-     ylim = range(likelihoods))
-#axis(side = 1, at = pretty(range(sigma_vals)))
+p1 <- ggplot() +
+  xlab("sigma") +
+  scale_y_continuous(sec.axis = sec_axis(~.*scale, name = "negative log likelihood", breaks = seq(0, 50, 10)))+
+  geom_line(aes(x = sigma_vals, y = likelihoods), color = likelihood_color) +
+  geom_line(aes(x = sigma_vals, y = nlls/scale), color = nll_color) +
+  geom_vline(xintercept = sigma_vals[which.max(likelihoods)], color = nll_color, linetype = 3) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.y.right = element_text(color = nll_color),
+        axis.ticks.y.right = element_line(color = nll_color),
+        axis.title.y.right = element_text(color = nll_color),
+        axis.text.y = element_text(color = likelihood_color),
+        axis.ticks.y = element_line(color = likelihood_color),
+        axis.title.y = element_text(color = likelihood_color))
 
-mtext("likelihood", las = 0, side = 2, line = 3, col = likelihood_color)
-axis(side = 2, at = pretty(range(likelihoods)), col.axis = likelihood_color, col.ticks = likelihood_color)
+p2 <- ggplot() +
+  ylim(range(sum_squares)) +
+  xlab("sigma") + ylab("sum of squares") +
+  geom_line(aes(x = sigma_vals, y = sum_squares), color = "skyblue3")
 
-par(new = TRUE)
-plot(sigma_vals, nlls, type = "l", lwd = 2, col = nll_color,
-     axes = FALSE, xlab = "", ylab = "",
-     ylim = range(nlls))
-axis(side = 4, at = pretty(range(nlls)), col.axis = nll_color, col.ticks = nll_color)
-mtext("negative log likelihood", las = 0, side = 4, line = 2, col = nll_color)
-
-abline(v = sigma_vals[which.max(likelihoods)], lty = 3, col = nll_color)
-
-par(new = FALSE)
-plot(sigma_vals, sum_squares, type = "l", lwd = 2, col = "skyblue3",
-     xlab = "sigma", ylab = "sum of squqares")
+p1 + p2
 ```
 
 ```{r}
-#| label: best sigma
-#| fig-width: 6
-#| fig-height: 6
+#| label: best-sigma
 
 # Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood
 # The least squares solution does not depend on sigma, so it's just flat -- no use here.
