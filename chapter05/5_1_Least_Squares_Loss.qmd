@@ -20,7 +20,7 @@ library(patchwork)
 This notebook investigates the least squares loss and the equivalence of maximum likelihood and minimum negative log likelihood.
 
 ```{r}
-#| label: ReLU and shallow neural network
+#| label: ReLU-shallow-neural-network
 
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
