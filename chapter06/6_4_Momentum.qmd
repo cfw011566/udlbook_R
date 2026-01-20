@@ -7,21 +7,19 @@ format: html
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: load library
-#| echo: false
+library(ggplot2)
 ```
 
 This notebook investigates the use of momentum as illustrated in figure 6.7 from the book.
 
 ```{r}
-#| label: data set
+#| label: data-set
 
 # Let's create our training data of 30 pairs {x_i, y_i}
 # We'll try to fit the Gabor model to these data
@@ -39,7 +37,7 @@ data <- matrix(c(-1.920e+00, -1.422e+01, 1.490e+00, -1.940e+00, -2.389e+00, -5.0
 ```
 
 ```{r}
-#| label: Gabor model
+#| label: Gabor-model
 
 # Let's define our model
 model <- function(phi, x) {
@@ -50,29 +48,27 @@ model <- function(phi, x) {
 ```
 
 ```{r}
-#| label: draw model
+#| label: draw-model
 
 # Draw model
 draw_model <- function(data, model, phi, title = NULL) {
   x_model <- seq(-15, 15, 0.1)
   y_model <- model(phi, x_model)
 
-  par(las = 1, xaxs = "i", yaxs = "i")
-  plot(0, type = "n",
-       xlim = c(-15, 15), ylim = c(-1, 1),
-       xlab = "x", ylab = "y"
-       )
-  if (!is.null(title)) {
-    title(title)
-  }
-  points(data[1,], data[2,], pch = 19, col = "blue3")
-  lines(x_model, y_model, lwd = 2, col = "magenta3")
+  ggplot() +
+    xlab("x") + ylab("y") +
+    ylim(c(-1, 1)) +
+    scale_x_continuous(breaks = seq(-15, 15, by = 5)) +
+    geom_line(aes(x = x_model, y = y_model), color = "magenta3", linewidth = 0.75) +
+    geom_point(aes(x = data[1,], y = data[2,]), color = "blue3", size = 2) +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) 
 }
 ```
 
 ```{r}
-#| fig-width: 6
-#| fig-height: 6
+#| label: test-draw-model
+#| fig-asp: 1
 
 # Initialize the parameters and draw the model
 #phi = np.zeros((2,1))
@@ -85,8 +81,8 @@ draw_model(data, model, phi, "Initial parameters")
 Now let's compute the sum of squares loss for the training data and plot the loss function
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| label: compute-loss-and-draw-loss
+#| fig-asp: 1
 
 compute_loss <- function(data_x, data_y, model, phi) {
   pred_y <- model(phi, data_x)
@@ -105,24 +101,36 @@ draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
     }
   }
 
-  color_rgb <- col2rgb("blue") / 255
-  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(phi_iters)) 10 else ncol(phi_iters)))
+  df <- expand.grid(phi0 = phi0_range, phi1 = phi1_range)
+  df$loss <- c(all_losses)
+  p <- ggplot() +
+    xlim(-10, 10) +
+    ylim(2.5, 22.5) +
+    xlab(expression("Offset, "*phi[0])) +
+    ylab(expression("Frequency, "*phi[1])) +
+    geom_contour_filled(
+      data = df,
+      mapping = aes(x = phi0, y = phi1, z = loss),
+      show.legend = FALSE,
+      bins = 128) +
+    geom_contour(
+      data = df,
+      mapping = aes(x = phi0, y = phi1, z = loss),
+      show.legend = FALSE,
+      bins = 20,
+      color = "grey",
+      linewidth = 0.25)
+  if (!is.null(phi_iters)) {
+    color_rgb <- col2rgb("red") / 255
+    points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out = ncol(phi_iters)))
   
-  filled.contour(
-    phi0_range,
-    phi1_range,
-    all_losses,
-    color.palette = terrain.colors,
-    xlab = expression(paste("Offset, ", phi[0])),
-    ylab = expression(paste("Frequency, ", phi[1])),
-    plot.axes = {
-      axis(1)
-      axis(2)
-      points(phi_iters[1,], phi_iters[2,],
-             pch = 19, cex = 0.75,
-             col = points_color)
-      }
-  )
+    p <- p + geom_point(
+      mapping = aes(x = phi_iters[1,], y = phi_iters[2,]),
+      color = points_color
+    )
+    p <- p + geom_path(aes(x = phi_iters[1,], y = phi_iters[2,]), color = "red3")
+  }
+  p
 }
 
 draw_loss_function(compute_loss, data, model)
@@ -138,46 +146,45 @@ $$
 $$
 
 ```{r}
-#| label: compute gradient
+#| label: compute-gradient
 
 # These came from writing out the expression for the sum of squares loss and taking the
 # derivative with respect to phi0 and phi1. It was a lot of hassle to get it right!
 gabor_deriv_phi0 <- function(data_x, data_y, phi0, phi1) {
-    x <- 0.06 * phi1 * data_x + phi0
-    y <- data_y
-    cos_component <- cos(x)
-    sin_component <- sin(x)
-    gauss_component <- exp(-0.5 * x * x / 16)
-    deriv <- cos_component * gauss_component - sin_component * gauss_component * x / 16
-    deriv <- 2 * deriv * (sin_component * gauss_component - y)
-    sum(deriv)
+  x <- 0.06 * phi1 * data_x + phi0
+  y <- data_y
+  cos_component <- cos(x)
+  sin_component <- sin(x)
+  gauss_component <- exp(-0.5 * x * x / 16)
+  deriv <- cos_component * gauss_component - sin_component * gauss_component * x / 16
+  deriv <- 2 * deriv * (sin_component * gauss_component - y)
+  sum(deriv)
 }
 
 gabor_deriv_phi1 <- function(data_x, data_y, phi0, phi1) {
-    x <- 0.06 * phi1 * data_x + phi0
-    y <- data_y
-    cos_component <- cos(x)
-    sin_component <- sin(x)
-    gauss_component <- exp(-0.5 * x * x / 16)
-    deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x * sin_component * gauss_component * x / 16
-    deriv <- 2 * deriv * (sin_component * gauss_component - y)
-    sum(deriv)
+  x <- 0.06 * phi1 * data_x + phi0
+  y <- data_y
+  cos_component <- cos(x)
+  sin_component <- sin(x)
+  gauss_component <- exp(-0.5 * x * x / 16)
+  deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x * sin_component * gauss_component * x / 16
+  deriv <- 2 * deriv * (sin_component * gauss_component - y)
+  sum(deriv)
 }
 
 compute_gradient <- function(data_x, data_y, phi) {
-    dl_dphi0 <- gabor_deriv_phi0(data_x, data_y, phi[1], phi[2])
-    dl_dphi1 <- gabor_deriv_phi1(data_x, data_y, phi[1], phi[2])
-    # Return the gradient
-    c(dl_dphi0, dl_dphi1)
+  dl_dphi0 <- gabor_deriv_phi0(data_x, data_y, phi[1], phi[2])
+  dl_dphi1 <- gabor_deriv_phi1(data_x, data_y, phi[1], phi[2])
+  # Return the gradient
+  c(dl_dphi0, dl_dphi1)
 }
 ```
 
 Let's first run standard stochastic gradient descent.
 
 ```{r}
-#| label: stochastic gradient descent
-#| fig-width: 8
-#| fig-height: 8
+#| label: stochastic-gradient-descent
+#| fig-asp: 1
 
 # Set the random number generator so you always get same numbers (disable if you don't want this)
 set.seed(1)
@@ -212,8 +219,7 @@ Now let's add momentum (equation 6.11)
 
 ```{r}
 #| label: momentum
-#| fig-width: 8
-#| fig-height: 8
+#| fig-asp: 1
 
 # Set the random number generator so you always get same numbers (disable if you don't want this)
 set.seed(1)
@@ -251,9 +257,8 @@ draw_loss_function(compute_loss, data, model, phi_all)
 Finally, we'll try Nesterov momentum
 
 ```{r}
-#| label: Nesterov momentum
-#| fig-width: 8
-#| fig-height: 8
+#| label: Nesterov-momentum
+#| fig-asp: 1
 
 # Set the random number generator so you always get same numbers (disable if you don't want this)
 set.seed(1)

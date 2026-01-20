@@ -169,32 +169,32 @@ $$
 # These came from writing out the expression for the sum of squares loss and taking the
 # derivative with respect to phi0 and phi1. It was a lot of hassle to get it right!
 gabor_deriv_phi0 <- function(data_x, data_y, phi0, phi1) {
-    x <- 0.06 * phi1 * data_x + phi0
-    y <- data_y
-    cos_component <- cos(x)
-    sin_component <- sin(x)
-    gauss_component <- exp(-0.5 * x * x / 16)
-    deriv <- cos_component * gauss_component - sin_component * gauss_component * x / 16
-    deriv <- 2 * deriv * (sin_component * gauss_component - y)
-    sum(deriv)
+  x <- 0.06 * phi1 * data_x + phi0
+  y <- data_y
+  cos_component <- cos(x)
+  sin_component <- sin(x)
+  gauss_component <- exp(-0.5 * x * x / 16)
+  deriv <- cos_component * gauss_component - sin_component * gauss_component * x / 16
+  deriv <- 2 * deriv * (sin_component * gauss_component - y)
+  sum(deriv)
 }
 
 gabor_deriv_phi1 <- function(data_x, data_y, phi0, phi1) {
-    x <- 0.06 * phi1 * data_x + phi0
-    y <- data_y
-    cos_component <- cos(x)
-    sin_component <- sin(x)
-    gauss_component <- exp(-0.5 * x * x / 16)
-    deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x * sin_component * gauss_component * x / 16
-    deriv <- 2 * deriv * (sin_component * gauss_component - y)
-    sum(deriv)
+  x <- 0.06 * phi1 * data_x + phi0
+  y <- data_y
+  cos_component <- cos(x)
+  sin_component <- sin(x)
+  gauss_component <- exp(-0.5 * x * x / 16)
+  deriv <- 0.06 * data_x * cos_component * gauss_component - 0.06 * data_x * sin_component * gauss_component * x / 16
+  deriv <- 2 * deriv * (sin_component * gauss_component - y)
+  sum(deriv)
 }
 
 compute_gradient <- function(data_x, data_y, phi) {
-    dl_dphi0 <- gabor_deriv_phi0(data_x, data_y, phi[1], phi[2])
-    dl_dphi1 <- gabor_deriv_phi1(data_x, data_y, phi[1], phi[2])
-    # Return the gradient
-    c(dl_dphi0, dl_dphi1)
+  dl_dphi0 <- gabor_deriv_phi0(data_x, data_y, phi[1], phi[2])
+  dl_dphi1 <- gabor_deriv_phi1(data_x, data_y, phi[1], phi[2])
+  # Return the gradient
+  c(dl_dphi0, dl_dphi1)
 }
 ```
 
