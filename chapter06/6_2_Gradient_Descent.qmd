@@ -1,21 +1,19 @@
 ---
 title: "6.2 Gradient Descent"
 author: "CF Wang"
-date: "2026-01-06"
+date: "2026-01-20"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: load library
-#| echo: false
+library(ggplot2)
 ```
 
 This notebook recreates the gradient descent algorithm as shown in figure 6.1.
@@ -25,11 +23,14 @@ This notebook recreates the gradient descent algorithm as shown in figure 6.1.
 
 # Let's create our training data 12 pairs {x_i, y_i}
 # We'll try to fit the straight line model to these data
-data <- matrix(c(0.03,0.19,0.34,0.46,0.78,0.81,1.08,1.18,1.39,1.60,1.65,1.90, 0.67,0.85,1.05,1.00,1.40,1.50,1.30,1.54,1.55,1.68,1.73,1.60), nrow = 2, byrow = TRUE)
+data <- matrix(
+  c(0.03, 0.19, 0.34, 0.46, 0.78, 0.81, 1.08, 1.18, 1.39, 1.60, 1.65, 1.90,
+    0.67, 0.85, 1.05, 1.00, 1.40, 1.50, 1.30, 1.54, 1.55, 1.68, 1.73, 1.60),
+  nrow = 2, byrow = TRUE)
 ```
 
 ```{r}
-#| label: model function
+#| label: model-function
 
 # Let's define our model -- just a straight line with intercept phi[0] and slope phi[1]
 model <- function(phi, x) {
@@ -38,30 +39,26 @@ model <- function(phi, x) {
 ```
 
 ```{r}
-#| label: draw model
+#| label: draw-model
 
 # Draw model
 draw_model <- function(data, model, phi, title = NULL) {
   x_model <- seq(0, 2, 0.01)
   y_model <- model(phi, x_model)
 
-  par(las = 1, xaxs = "i", yaxs = "i")
-  plot(0, type = "n",
-       xlim = c(0, 2), ylim = c(0, 2),
-       xlab = "x", ylab = "y"
-       )
-  if (!is.null(title)) {
-    title(title)
-  }
-  lines(x_model, y_model, lwd = 2, col = "magenta3")
-  points(data[1,], data[2,], pch = 19, col = "blue3")
+  ggplot() +
+    xlim(c(0, 2)) + ylim(c(0, 2)) +
+    xlab("x") + ylab("y") +
+    geom_line(aes(x = x_model, y = y_model), color = "magenta3", linewidth = 0.75) +
+    geom_point(aes(x = data[1,], y = data[2,]), color = "blue3", size = 2) +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) 
 }
 ```
 
 ```{r}
-#| label: test draw model
-#| fig-width: 6
-#| fig-height: 6
+#| label: test-draw-model
+#| fig-asp: 1
 
 # Initialize the parameters to some arbitrary values and draw the model
 # phi = np.zeros((2,1))
@@ -74,7 +71,7 @@ draw_model(data, model, phi, "Initial parameters")
 Now let's compute the sum of squares loss for the training data
 
 ```{r}
-#| label: compute loss
+#| label: compute-loss
 
 compute_loss <- function(data_x, data_y, model, phi) {
   # TODO -- Write this function -- replace the line below
@@ -89,7 +86,7 @@ compute_loss <- function(data_x, data_y, model, phi) {
 Let's just test that we got that right
 
 ```{r}
-#| label: test compute loss
+#| label: test-compute-loss
 
 loss <- compute_loss(data[1,], data[2,], model, c(0.6, -0.2))
 sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 12.367)
@@ -98,9 +95,8 @@ sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 12.367)
 Now let's plot the whole loss function
 
 ```{r}
-#| label: draw loss
-#| fig-width: 6
-#| fig-height: 6
+#| label: draw-loss
+#| fig-asp: 1
 
 draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
   phi0_range <- seq(0.0, 2.0, 0.02)
@@ -113,23 +109,35 @@ draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
   }
 # all_losses <- outer(phi0_range, phi1_range, function(p0, p1) { compute_loss(x, y, p0, p1)})
 
-  color_rgb <- col2rgb("blue") / 255
-  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(phi_iters)) 10 else ncol(phi_iters)))
+  color_rgb <- col2rgb("red") / 255
+  points_color <- rgb(
+    red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3],
+    alpha = seq(0.2, 1, length.out = if (is.null(phi_iters)) 10 else ncol(phi_iters))
+    )
   
-  filled.contour(
-    phi0_range,
-    phi1_range,
-    all_losses,
-    xlab = expression(paste("Intercept, ", phi[0])),
-    ylab = expression(paste("Slope, ", phi[1])),
-    plot.axes = {
-      axis(1)
-      axis(2)
-      points(phi_iters[1,], phi_iters[2,],
-             pch = 19, cex = 0.75,
-             col = points_color)
-      }
-  )
+  df <- expand.grid(phi0 = phi0_range, phi1 = phi1_range)
+  df$loss <- c(all_losses)
+  ggplot() +
+    xlim(0, 2) +
+    ylim(-1, 1) +
+    xlab(expression("Intercep, "*phi[0])) +
+    ylab(expression("Slope, "*phi[1])) +
+    geom_contour_filled(
+      data = df,
+      mapping = aes(x = phi0, y = phi1, z = loss),
+      show.legend = FALSE,
+      bins = 128) +
+    geom_contour(
+      data = df,
+      mapping = aes(x = phi0, y = phi1, z = loss),
+      show.legend = FALSE,
+      bins = 20,
+      color = "grey",
+      linewidth = 0.25) +
+    geom_point(
+      mapping = aes(x = phi_iters[1,], y = phi_iters[2,]),
+      color = points_color
+    )
 }
 
 draw_loss_function(compute_loss, data, model)
@@ -146,7 +154,7 @@ $$
 $$
 
 ```{r}
-#| label: compute gradient
+#| label: compute-gradient
 
 # These are in the lecture slides and notes, but worth trying to calculate them yourself to
 # check that you get them right.  Write out the expression for the sum of squares loss and take the
@@ -157,7 +165,7 @@ compute_gradient <- function(data_x, data_y, phi) {
   dl_dphi1 <- 2 * sum(data_x*(phi[1] + phi[2]*data_x - data_y))
 
   # Return the gradient
-  c(dl_dphi0,dl_dphi1)
+  c(dl_dphi0, dl_dphi1)
 }
 ```
 
@@ -166,12 +174,12 @@ $$
 \begin{aligned}
 \frac{\partial L}{\partial\phi_0} &\approx \frac{L[\phi_0+\delta,\phi_1] - L[\phi_0,\phi_1]}{\delta} \\
 \frac{\partial L}{\partial\phi_1} &\approx \frac{L[\phi_0,\phi_1+\delta] - L[\phi_0,\phi_1]}{\delta}
-\end{aligned}
+\end{aligned}\tag{2}
 $$
 We can't do this when there are many parameters; for a million parameters, we would have to evaluate the loss function one million plus one times, and usually computing the gradients directly is much more efficient.
 
 ```{r}
-#| label: test compute gradient
+#| label: test-compute-gradient
 
 # Compute the gradient using your function
 gradient <- compute_gradient(data[1,], data[2,], phi)
@@ -187,7 +195,7 @@ sprintf("Approx gradients: (%3.3f,%3.3f)", dl_dphi0_est, dl_dphi1_est)
 Now we are ready to perform gradient descent. We'll need to use our line search routine from notebook 6.1, which I've reproduced here plus the helper function loss_function_1D that maps the search along the negative gradient direction in 2D space to a 1D problem (distance along this direction)
 
 ```{r}
-#| label: line search
+#| label: line-search
 
 loss_function_1D <- function(dist_prop, data, model, phi_start, search_direction) {
   # Return the loss after moving this far
@@ -251,7 +259,7 @@ line_search <- function(data, model, phi, gradient, thresh=.00001, max_dist = 0.
 ```
 
 ```{r}
-#| label: gradient descent step
+#| label: gradient-descent-step
 
 gradient_descent_step <- function(phi, data, model) {
   # TODO -- update Phi with the gradient descent step (equation 6.3)
@@ -266,9 +274,8 @@ gradient_descent_step <- function(phi, data, model) {
 ```
 
 ```{r}
-#| label: gradient descent iteration
-#| fig-width: 6
-#| fig-height: 6
+#| label: gradient-descent-iteration
+#| fig-asp: 1
 
 # Initialize the parameters and draw the model
 n_steps <- 10
@@ -286,7 +293,8 @@ for (c_step in 1:n_steps) {
   phi_all[,c_step+1] <- gradient_descent_step(phi_all[,c_step], data, model)
   # Measure loss and draw model
   loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
-  draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+  p <- draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+  print(p)
 }
 
 # Draw the trajectory on the loss function

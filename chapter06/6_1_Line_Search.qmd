@@ -1,7 +1,7 @@
 ---
 title: "6.1 Line Search"
 author: "CF Wang"
-date: "2026-01-03"
+date: "2026-01-20"
 format: html
 ---
 
@@ -14,7 +14,6 @@ format: html
 #| out-width: 70%
 
 library(ggplot2)
-library(patchwork)
 ```
 
 This notebook investigates how to find the minimum of a 1D function using line search as described in Figure 6.10.
