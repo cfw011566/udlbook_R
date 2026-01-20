@@ -7,47 +7,45 @@ format: html
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: load library
-#| echo: false
 library(ggplot2)
+library(patchwork)
 ```
 
 This notebook investigates how to find the minimum of a 1D function using line search as described in Figure 6.10.
 
 ```{r}
-#| label: loss function
-#| fig-width: 6
-#| fig-height: 6
+#| label: loss-function
+#| fig-asp: 1
 
 # Let's create a simple 1D function
 loss_function <- function(phi) {
   1 - 0.5 * exp(-(phi-0.65)*(phi-0.65)/0.1) - 0.45 * exp(-(phi-0.35)*(phi-0.35)/0.02)
 }
 
-draw_function <- function(loss_function, a=NULL, b=NULL, c=NULL, d=NULL) {
+draw_function <- function(loss_function, a = NULL, b = NULL, c = NULL, d = NULL) {
   # Plot the function
   phi_plot <- seq(0, 1, 0.01)
   
-  par(las = 1, xaxs = "i", yaxs = "i")
-  plot(phi_plot, loss_function(phi_plot),
-       type = "l",lwd = 2, col = "red3",
-       xlim = c(0, 1), ylim = c(0, 1),
-       xlab = expression(phi),
-       ylab = expression("L["*phi*"]")
-       )
+  p <- ggplot() +
+    xlim(c(0, 1)) + ylim(c(0, 1)) +
+    xlab(expression(phi)) +
+    ylab(expression("L["*phi*"]")) +
+    geom_line(aes(x = phi_plot, y = loss_function(phi_plot)), color = "red3")
+  
   if (!is.null(a) && !is.null(b) && !is.null(c) && !is.null(d)) {
-    abline(v = a, col = "skyblue3")
-    abline(v = b, col = "skyblue3")
-    abline(v = c, col = "skyblue3")
-    abline(v = d, col = "skyblue3")
+    p <- p +
+      geom_vline(xintercept = a, linetype = 1, color = "skyblue3") +
+      geom_vline(xintercept = b, linetype = 1, color = "skyblue3") +
+      geom_vline(xintercept = c, linetype = 1, color = "skyblue3") +
+      geom_vline(xintercept = d, linetype = 1, color = "skyblue3")
   }
+  p
 }
 
 # Draw this function
@@ -57,8 +55,7 @@ draw_function(loss_function)
 Now lets create a line search procedure to find the minimum in the range 0,1
 
 ```{r}
-#| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 1
 
 line_search <- function(loss_function, thresh = 0.0001, max_iter = 10, draw_flag = FALSE) {
   # Initialize four points along the range we are going to search
@@ -80,7 +77,7 @@ line_search <- function(loss_function, thresh = 0.0001, max_iter = 10, draw_flag
     lossd <- loss_function(d)
 
     if (draw_flag) {
-      draw_function(loss_function, a, b, c, d)
+      print(draw_function(loss_function, a, b, c, d))
     }
 
     print(sprintf("Iter %d, a=%3.3f, b=%3.3f, c=%3.3f, d=%3.3f", n_iter, a, b, c, d))
@@ -122,7 +119,7 @@ line_search <- function(loss_function, thresh = 0.0001, max_iter = 10, draw_flag
   soln <- (b + c) / 2
 }
     
-soln <- line_search(loss_function, draw_flag=TRUE)
+soln <- line_search(loss_function, draw_flag = TRUE)
 sprintf("Soln = %3.3f, loss = %3.3f", soln, loss_function(soln))
 ```
 

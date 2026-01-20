@@ -203,7 +203,7 @@ sprintf("Correct answer = %9.9f, Your answer = %9.9f", 9.563639387,nll)
 Now let's investigate finding the maximum likelihood / minimum negative log likelihood solution. For simplicity, we'll assume that all the parameters are fixed except one and look at how the likelihood and negative log likelihood change as we manipulate the last parameter. We'll start with overall y_offset, beta_1 (formerly phi_0)
 
 ```{r}
-#| fig-asp: 2.5
+#| fig-asp: 0.5
 
 # Define a range of values for the parameter
 beta_1_vals <- seq(-2, 6.0, 0.1)
@@ -213,7 +213,6 @@ nlls <- rep(0, length(beta_1_vals))
 
 # Initialise the parameters
 params <- get_parameters()
-p <- NULL
 for (count in 1:length(beta_1_vals)) {
   # Set the value for the parameter
   params$beta_1[1,1] = beta_1_vals[count]
@@ -228,10 +227,10 @@ for (count in 1:length(beta_1_vals)) {
     # Run the model to get values to plot and plot it.
     model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
     lambda_model <- sigmoid(model_out)
-    p <- p / plot_binary_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta_1[1]=%3.3f", params$beta_1[1,1]))
+    p <- plot_binary_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta_1[1]=%3.3f", params$beta_1[1,1]))
+    print(p)
   }
 }
-p
 ```
 
 ```{r}

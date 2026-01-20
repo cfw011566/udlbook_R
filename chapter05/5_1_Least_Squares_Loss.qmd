@@ -244,7 +244,6 @@ Now let's investigate finding the maximum likelihood / minimum negative log like
 
 ```{r}
 #| label: comparison-for-different-beta_1
-#| fig-asp: 4
 
 # Define a range of values for the parameter
 beta_1_vals <- seq(0, 1.0, 0.01)
@@ -256,7 +255,6 @@ sum_squares <- rep(0, times = length(beta_1_vals))
 # Initialise the parameters
 params <- get_parameters()
 sigma <- 0.2
-p <- NULL
 for (count in 1:length(beta_1_vals)) {
   # Set the value for the parameter
   params$beta_1[1,1] = beta_1_vals[count]
@@ -271,10 +269,10 @@ for (count in 1:length(beta_1_vals)) {
   if ((count-1) %% 20 == 0) {
     # Run the model to get values to plot and plot it.
     y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
-    p <- p / plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("beta1=%.3f", params$beta_1[1,1]))
+    p <- plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("beta1=%.3f", params$beta_1[1,1]))
+    print(p)
   }
 }
-p
 ```
 
 ```{r}
@@ -329,8 +327,7 @@ They all give the same answer. But you can see from the three plots above that t
 Let's do the same thing with the standard deviation parameter of our network. This is not an output of the network (unless we choose to make that the case), but it still affects the likelihood.
 
 ```{r}
-#| label: comparison with different sigma
-#| fig-asp: 4
+#| label: comparison-with-different-sigma
 
 # Define a range of values for the parameter
 sigma_vals <- seq(0.1, 0.5, 0.005)
@@ -343,7 +340,6 @@ sum_squares <- rep(0, times = length(sigma_vals))
 params <- get_parameters()
 # Might as well set to the best offset
 params$beta_1[1,1] = 0.27
-p <- NULL
 for (count in 1:length(sigma_vals)) {
   # Set the value for the parameter
   sigma <- sigma_vals[count]
@@ -358,10 +354,10 @@ for (count in 1:length(sigma_vals)) {
   if ((count-1) %% 20 == 0) {
     # Run the model to get values to plot and plot it.
     y_model <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
-    p <- p / plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("sigma=%.3f", sigma))
+    p <- plot_univariate_regression(x_model, y_model, x_train, y_train, sigma_model = sigma, title = sprintf("sigma=%.3f", sigma))
+    print(p)
   }
 }
-p
 ```
 
 ```{r}
