@@ -246,9 +246,9 @@ ggplot() +
   xlab("beta_1") +
   scale_y_continuous(
     limits = c(0, 3.5e-4), breaks = seq(0, 3.5e-4, 5e-5),
-    sec.axis = sec_axis(~.*scale, name = "negative log likelihood", breaks = seq(0, 30, 5)))+
+    sec.axis = sec_axis(~.*scale+5, name = "negative log likelihood", breaks = seq(0, 35, 5)))+
   geom_line(aes(x = beta_1_vals, y = likelihoods), color = likelihood_color) +
-  geom_line(aes(x = beta_1_vals, y = nlls/scale), color = nll_color) +
+  geom_line(aes(x = beta_1_vals, y = (nlls-5)/scale), color = nll_color) +
   geom_vline(xintercept = beta_1_vals[which.max(likelihoods)], color = nll_color, linetype = 3) +
   theme(axis.text.y.right = element_text(color = nll_color),
         axis.ticks.y.right = element_line(color = nll_color),

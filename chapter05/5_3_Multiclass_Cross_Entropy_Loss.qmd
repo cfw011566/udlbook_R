@@ -7,20 +7,20 @@ format: html
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: load library
-#| echo: false
 library(ggplot2)
+library(patchwork)
 ```
 
+This notebook investigates the multi-class cross-entropy loss. It follows from applying the formula in section 5.2 to a loss function based on the Categorical distribution.
+
 ```{r}
-#| label: ReLU and shallow neural network
+#| label: ReLU-shallow-neural-network
 
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
@@ -43,7 +43,7 @@ shallow_nn <- function(x, beta_0, omega_0, beta_1, omega_1) {
 ```
 
 ```{r}
-#| label: default parameters
+#| label: default-parameters
 
 # Get parameters for model -- we can call this function to easily reset them
 get_parameters <- function() {
@@ -65,7 +65,7 @@ get_parameters <- function() {
 ```
 
 ```{r}
-#| label: plot function
+#| label: plot-function
 
 # Utility function for plotting data
 plot_multiclass_classification <- function(x_model, out_model, lambda_model, x_data = NULL, y_data = NULL, title = NULL) {
@@ -75,49 +75,37 @@ plot_multiclass_classification <- function(x_model, out_model, lambda_model, x_d
   # x_model = np.squeeze(x_model)
   out_model <- matrix(out_model, nrow = n_class, ncol = n_data)
   lambda_model <- matrix(lambda_model, nrow = n_class, ncol = n_data)
-
-  par(mfcol = c(1,2), las = 1, xaxs = "i", yaxs = "i")
-  plot(0, type = "n", xlim = c(0, 1), ylim = c(-4, 4),
-       # xaxp = c(0, 1, 8),
-       yaxp = c(-4, 4, 8),
-       xlab = expression("Input, "*x),
-       ylab = "Model output"
-  )
-  lines(x_model, out_model[1,], lwd = 2, col = "red3")
-  lines(x_model, out_model[2,], lwd = 2, col = "green3")
-  lines(x_model, out_model[3,], lwd = 2, col = "blue3")
-
-  if (!is.null(title)) {
-    title(title)
-  }
   
-  plot(0, type = "n", xlim = c(0, 1), ylim = c(-0.1, 1.05),
-       xlab = expression("Input, "*x),
-       ylab = expression(lambda*" or Pr(y=1|x)")
-  )
-  lines(x_model, lambda_model[1,], lwd = 2, col = "red3")
-  lines(x_model, lambda_model[2,], lwd = 2, col = "green3")
-  lines(x_model, lambda_model[3,], lwd = 2, col = "blue3")
-  if (!is.null(title)) {
-    title(title)
-  }
+  p1 <- ggplot() +
+    xlab(expression("Intput, "*x)) +
+    ylab("Model output") +
+    xlim(c(0, 1)) +
+    scale_y_continuous(breaks = seq(-4, 4, by = 1), limits = c(-4, 4)) +
+    geom_line(mapping = aes(x = x_model, y = out_model[1,]), color = "red3", linewidth = 0.75) +
+    geom_line(mapping = aes(x = x_model, y = out_model[2,]), color = "green3", linewidth = 0.75) +
+    geom_line(mapping = aes(x = x_model, y = out_model[3,]), color = "blue3", linewidth = 0.75) +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) 
+  
+  p2 <- ggplot() +
+    xlab(expression("Input, "*x)) +
+    ylab(expression(lambda*" or Pr(y=1|x)")) +
+    xlim(c(0, 1)) +
+    scale_y_continuous(breaks = seq(0, 1, by = 0.2), limits = c(-0.1, 1)) +
+    geom_line(mapping = aes(x = x_model, y = lambda_model[1,]), color = "red3", linewidth = 0.75) +
+    geom_line(mapping = aes(x = x_model, y = lambda_model[2,]), color = "green3", linewidth = 0.75) +
+    geom_line(mapping = aes(x = x_model, y = lambda_model[3,]), color = "blue3", linewidth = 0.75) +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) 
   if (!is.null(x_data)) {
     custom_colors <- c("red3", "green3", "blue3")
     point_colors <- custom_colors[y_data+1]
     y_coord <- rep(-0.05, length(y_data))
-    points(x_data, y_coord, pch = 19, col = point_colors)
-#    for (i in 1:length(x_data)) {
-#      if (y_data[i] == 0) {
-#        points(x_data[i], -0.05, pch = 19, col = "red3")
-#      }
-#      if (y_data[i] == 1) {
-#        points(x_data[i], -0.05, pch = 19, col = "green3")
-#      }
-#      if (y_data[i] == 2) {
-#        points(x_data[i], -0.05, pch = 19, col = "blue3")
-#      }
-#    }
+    p2 <- p2 +
+      geom_point(mapping = aes(x = x_data, y = y_coord), color = point_colors, size = 2)
   }
+  
+  p1 + p2
 }
 ```
 
@@ -167,7 +155,7 @@ plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_trai
 The left is model output and the right is the model output after the softmax has been applied, so it now lies in the range [0,1] and represents the probability, that y=0 (red), 1 (green) and 2 (blue). The dots at the bottom show the training data with the same color scheme. So we want the red curve to be high where there are red dots, the green curve to be high where there are green dots, and the blue curve to be high where there are blue dots We'll compute the likelihood and the negative log likelihood.
 
 ```{r}
-#| label: categorical distribution
+#| label: categorical-distribution
 
 # Return probability under categorical distribution for observed class y
 # Just take value from row k of lambda param where y =k,
@@ -216,7 +204,7 @@ You can see that this gives a very small answer, even for this small 1D dataset,
 This is why we use negative log likelihood
 
 ```{r}
-#| label: negative log likelihood
+#| label: negative-log-likelihood
 
 # Return the negative log likelihood of the data under the model
 compute_negative_log_likelihood <- function(y_train, lambda_param) {
@@ -241,8 +229,7 @@ sprintf("Correct answer = %9.9f, Your answer = %9.9f", 17.015457867, nll)
 Now let's investigate finding the maximum likelihood / minimum negative log likelihood solution. For simplicity, we'll assume that all the parameters are fixed except one and look at how the likelihood and negative log likelihood change as we manipulate the last parameter. We'll start with overall y_offset, $\beta_1$ (formerly $\phi_0$)
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 4
+#| fig-asp: 2.5
 
 # Define a range of values for the parameter
 beta_1_vals <- seq(-2, 6.0, 0.1)
@@ -252,6 +239,7 @@ nlls <- rep(0, length(beta_1_vals))
 
 # Initialise the parameters
 params <- get_parameters()
+p <- NULL
 for (count in 1:length(beta_1_vals)) {
   # Set the value for the parameter
   params$beta_1[1,1] <- beta_1_vals[count]
@@ -266,46 +254,40 @@ for (count in 1:length(beta_1_vals)) {
     # Run the model to get values to plot and plot it.
     model_out <- shallow_nn(x_model, params$beta_0, params$omega_0, params$beta_1, params$omega_1)
     lambda_model <- softmax(model_out)
-    plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1=%3.3f", params$beta_1[1,1]))
+    p <- p / plot_multiclass_classification(x_model, model_out, lambda_model, x_train, y_train, title = sprintf("beta1=%3.3f", params$beta_1[1,1]))
   }
 }
+p
 ```
 
 ```{r}
-#| label: likelihood and negative log likelihood
-#| fig-width: 8
-#| fig-height: 6
+#| label: likelihood-negative-log-likelihood
 
 # Now let's plot the likelihood and negative log likelihood as a function of the value of the offset beta1
 #par(mfcol = c(1,2), las = 1)
-par(mar = c(5, 5, 4, 4) + 0.1, las = 1)
 likelihood_color <- "red3"
 nll_color <- "skyblue3"
+scale <- max(likelihoods) / max(nlls)
 
-
-plot(beta_1_vals, likelihoods, type = "l", lwd = 2, col = likelihood_color,
-     axes = FALSE,
-     xlab = "beta_1[1,1]", ylab = "",
-     ylim = range(likelihoods))
-#axis(side = 1, #at = pretty(range(beta_1_vals)))
-axis(side = 1, at = seq(min(beta_1_vals), max(beta_1_vals, length.out = 8)))
-
-mtext("likelihood", las = 0, side = 2, line = 4, col = likelihood_color)
-axis(side = 2, at = pretty(range(likelihoods)), col.axis = likelihood_color, col.ticks = likelihood_color)
-
-par(new = TRUE)
-plot(beta_1_vals, nlls, type = "l", lwd = 2, col = nll_color,
-     axes = FALSE, xlab = "", ylab = "",
-     ylim = range(nlls))
-axis(side = 4, at = pretty(range(nlls)), col.axis = nll_color, col.ticks = nll_color)
-mtext("negative log likelihood", las = 0, side = 4, line = 2, col = nll_color)
-
-abline(v = beta_1_vals[which.max(likelihoods)], lty = 3, col = nll_color)
+ggplot() +
+  xlab("beta_1") +
+  scale_y_continuous(
+    limits = c(0, 7.1e-7), breaks = seq(0, 7.1e-7, 1e-7),
+    sec.axis = sec_axis(~./scale+10, name = "negative log likelihood", breaks = seq(10, 55, 5)))+
+  geom_line(aes(x = beta_1_vals, y = likelihoods), color = likelihood_color) +
+  geom_line(aes(x = beta_1_vals, y = (nlls-10)*scale), color = nll_color) +
+  geom_vline(xintercept = beta_1_vals[which.max(likelihoods)], color = nll_color, linetype = 3) +
+  theme(axis.text.y.right = element_text(color = nll_color),
+        axis.ticks.y.right = element_line(color = nll_color),
+        axis.title.y.right = element_text(color = nll_color),
+        axis.text.y = element_text(color = likelihood_color),
+        axis.ticks.y = element_line(color = likelihood_color),
+        axis.title.y = element_text(color = likelihood_color))
 ```
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 4
+#| label: best-model
+#| fig-asp: 0.5
 
 # Hopefully, you can see that the maximum of the likelihood fn is at the same position as the minimum negative log likelihood solution
 # Let's check that:
