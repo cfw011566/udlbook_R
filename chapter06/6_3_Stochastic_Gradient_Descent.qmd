@@ -1,27 +1,25 @@
 ---
 title: "6.3 Stochastic Gradient Descent"
 author: "CF Wang"
-date: "2026-01-07"
+date: "2026-01-20"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
+#| out-width: 70%
 
-```{r}
-#| label: load library
-#| echo: false
+library(ggplot2)
 ```
 
 This notebook investigates gradient descent and stochastic gradient descent and recreates figure 6.5 from the book
 
 ```{r}
-#| label: data set
+#| label: dataset
 
 # Let's create our training data of 30 pairs {x_i, y_i}
 # We'll try to fit the Gabor model to these data
@@ -39,7 +37,7 @@ data <- matrix(c(-1.920e+00, -1.422e+01, 1.490e+00, -1.940e+00, -2.389e+00, -5.0
 ```
 
 ```{r}
-#| label: Gabor model
+#| label: Gabor-model
 
 # Let's define our model
 model <- function(phi, x) {
@@ -50,29 +48,26 @@ model <- function(phi, x) {
 ```
 
 ```{r}
-#| label: draw model
+#| label: draw-model
 
 # Draw model
 draw_model <- function(data, model, phi, title = NULL) {
   x_model <- seq(-15, 15, 0.1)
   y_model <- model(phi, x_model)
 
-  par(las = 1, xaxs = "i", yaxs = "i")
-  plot(0, type = "n",
-       xlim = c(-15, 15), ylim = c(-1, 1),
-       xlab = "x", ylab = "y"
-       )
-  if (!is.null(title)) {
-    title(title)
-  }
-  points(data[1,], data[2,], pch = 19, col = "blue3")
-  lines(x_model, y_model, lwd = 2, col = "magenta3")
+  ggplot() +
+    xlab("x") + ylab("y") +
+    ylim(c(-1, 1)) +
+    scale_x_continuous(breaks = seq(-15, 15, by = 5)) +
+    geom_line(aes(x = x_model, y = y_model), color = "magenta3", linewidth = 0.75) +
+    geom_point(aes(x = data[1,], y = data[2,]), color = "blue3", size = 2) +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) 
 }
 ```
 
 ```{r}
-#| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 1
 
 # Initialize the parameters and draw the model
 #phi = np.zeros((2,1))
@@ -85,6 +80,8 @@ draw_model(data, model, phi, "Initial parameters")
 Now let's compute the sum of squares loss for the training data
 
 ```{r}
+#| label: compute-loss
+
 compute_loss <- function(data_x, data_y, model, phi) {
   # TODO -- Write this function -- replace the line below
   # TODO -- First make model predictions from data x
@@ -98,6 +95,8 @@ compute_loss <- function(data_x, data_y, model, phi) {
 Let's just test that we got that right
 
 ```{r}
+#| label: test-compute-loss
+
 loss <- compute_loss(data[1,], data[2,], model, c(0.6,-0.2))
 sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 16.419)
 ```
@@ -105,9 +104,8 @@ sprintf("Your loss = %3.3f, Correct loss = %3.3f", loss, 16.419)
 Now let's plot the whole loss function
 
 ```{r}
-#| label: draw loss
-#| fig-width: 8
-#| fig-height: 8
+#| label: draw-loss
+#| fig-asp: 1
 
 draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
   phi0_range <- seq(-10, 10, 0.1)
@@ -120,24 +118,36 @@ draw_loss_function <- function(compute_loss, data,  model, phi_iters = NULL) {
   }
 # all_losses <- outer(phi0_range, phi1_range, function(p0, p1) { compute_loss(x, y, p0, p1)})
 
-  color_rgb <- col2rgb("blue") / 255
-  points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out=if (is.null(phi_iters)) 10 else ncol(phi_iters)))
+  df <- expand.grid(phi0 = phi0_range, phi1 = phi1_range)
+  df$loss <- c(all_losses)
+  p <- ggplot() +
+    xlim(-10, 10) +
+    ylim(2.5, 22.5) +
+    xlab(expression("Intercep, "*phi[0])) +
+    ylab(expression("Slope, "*phi[1])) +
+    geom_contour_filled(
+      data = df,
+      mapping = aes(x = phi0, y = phi1, z = loss),
+      show.legend = FALSE,
+      bins = 128) +
+    geom_contour(
+      data = df,
+      mapping = aes(x = phi0, y = phi1, z = loss),
+      show.legend = FALSE,
+      bins = 20,
+      color = "grey",
+      linewidth = 0.25)
+  if (!is.null(phi_iters)) {
+    color_rgb <- col2rgb("red") / 255
+    points_color <- rgb(red = color_rgb[1], green = color_rgb[2], blue = color_rgb[3], alpha = seq(0.2, 1, length.out = ncol(phi_iters)))
   
-  filled.contour(
-    phi0_range,
-    phi1_range,
-    all_losses,
-    color.palette = terrain.colors,
-    xlab = expression(paste("Offset, ", phi[0])),
-    ylab = expression(paste("Frequency, ", phi[1])),
-    plot.axes = {
-      axis(1)
-      axis(2)
-      points(phi_iters[1,], phi_iters[2,],
-             pch = 19, cex = 0.75,
-             col = points_color)
-      }
-  )
+    p <- p + geom_point(
+      mapping = aes(x = phi_iters[1,], y = phi_iters[2,]),
+      color = points_color
+    )
+    p <- p + geom_path(aes(x = phi_iters[1,], y = phi_iters[2,]), color = "red3")
+  }
+  p
 }
 
 draw_loss_function(compute_loss, data, model)
@@ -154,7 +164,7 @@ $$
 $$
 
 ```{r}
-#| label: compute gradient
+#| label: compute-gradient
 
 # These came from writing out the expression for the sum of squares loss and taking the
 # derivative with respect to phi0 and phi1. It was a lot of hassle to get it right!
@@ -198,13 +208,13 @@ $$
 We can't do this when there are many parameters; for a million parameters, we would have to evaluate the loss function two million times, and usually computing the gradients directly is much more efficient.
 
 ```{r}
-#| label: test compute gradient
+#| label: test-compute-gradient
 
 # Compute the gradient using your function
 gradient <- compute_gradient(data[1,], data[2,], phi)
 sprintf("Your gradients: (%3.3f,%3.3f)", gradient[1], gradient[2])
 # Approximate the gradients with finite differences
-delta = 0.0001
+delta <- 0.0001
 dl_dphi0_est <- (compute_loss(data[1,], data[2,], model, phi+c(delta, 0)) - compute_loss(data[1,], data[2,], model, phi)) / delta
 dl_dphi1_est <- (compute_loss(data[1,], data[2,], model, phi+c(0, delta)) - compute_loss(data[1,], data[2,], model, phi)) / delta
 sprintf("Approx gradients: (%3.3f,%3.3f)", dl_dphi0_est, dl_dphi1_est)
@@ -213,7 +223,7 @@ sprintf("Approx gradients: (%3.3f,%3.3f)", dl_dphi0_est, dl_dphi1_est)
 Now we are ready to perform gradient descent. We'll need to use our line search routine from Notebook 6.1, which I've reproduced here plus the helper function loss_function_1D that converts from a 2D problem to a 1D problem
 
 ```{r}
-#| label: line search
+#| label: line-search
 
 loss_function_1D <- function(dist_prop, data, model, phi_start, search_direction) {
   # Return the loss after moving this far
@@ -277,7 +287,7 @@ line_search <- function(data, model, phi, gradient, thresh=.00001, max_dist = 0.
 ```
 
 ```{r}
-#| label: gradient descent step
+#| label: gradient-descent-step
 
 gradient_descent_step <- function(phi, data, model) {
   # Step 1:  Compute the gradient
@@ -289,8 +299,7 @@ gradient_descent_step <- function(phi, data, model) {
 ```
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| fig-asp: 1
 
 # Initialize the parameters
 n_steps <- 21
@@ -308,7 +317,8 @@ for (c_step in 1:n_steps) {
   # Measure loss and draw model
   if (c_step %% 4 == 0) {
     loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
-    draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+    p <- draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+    print(p)
   }
 }
 
@@ -321,19 +331,17 @@ draw_loss_function(compute_loss, data, model, phi_all)
 ```
 
 ```{r}
-#| label: gradient descent step fixed learning rate
+#| label: gradient-descent-step-fixed-learning-rate
 
 gradient_descent_step_fixed_learning_rate <- function(phi, data, alpha) {
   # TODO -- fill in this routine so that we take a fixed size step of size alpha without using line search
-
   gradient <- compute_gradient(data[1,], data[2,], phi)
   phi <- phi - alpha * gradient
 }
 ```
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| fig-asp: 1
 
 # Initialize the parameters
 n_steps <- 21
@@ -347,11 +355,12 @@ draw_model(data, model, phi_all[,1], sprintf("Initial parameters, Loss = %f", lo
 
 for (c_step in 1:n_steps) {
   # Do gradient descent step
-  phi_all[,c_step+1] <- gradient_descent_step_fixed_learning_rate(phi_all[,c_step],data, alpha = 0.2)
+  phi_all[,c_step+1] <- gradient_descent_step_fixed_learning_rate(phi_all[,c_step], data, alpha = 0.2)
   # Measure loss and draw model
   if (c_step %% 4 == 0) {
     loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
-    draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+    p <- draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+    print(p)
   }
 }
 
@@ -359,6 +368,8 @@ draw_loss_function(compute_loss, data, model, phi_all)
 ```
 
 ```{r}
+#| label: stochastic-gradient_descent-step
+
 # TODO Experiment with the learning rate, alpha.
 # What happens if you set it too large?
 # What happens if you set it too small?
@@ -371,7 +382,6 @@ stochastic_gradient_descent_step <- function(phi, data, alpha, batch_size) {
   # You can use the function np.random.permutation to generate a random permutation of the n_data = data.shape[1] indices
   # and then just choose the first n=batch_size of these indices.  Then compute the gradient update
   # from just the data with these indices.   More properly, you should sample without replacement, but this will do for now.
-
   batch_index <- sample(ncol(data), batch_size)
   batch_data <- data[,batch_index]
   gradient <- compute_gradient(batch_data[1,], batch_data[2,], phi)
@@ -380,8 +390,7 @@ stochastic_gradient_descent_step <- function(phi, data, alpha, batch_size) {
 ```
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| fig-asp: 1
 
 # Set the random number generator so you always get same numbers (disable if you don't want this)
 set.seed(1)
@@ -401,7 +410,8 @@ for (c_step in 1:n_steps) {
   # Measure loss and draw model every 8th step
   if (c_step %% 8 == 0) {
     loss <- compute_loss(data[1,], data[2,], model, phi_all[,c_step+1])
-    draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+    p <- draw_model(data, model, phi_all[,c_step+1], sprintf("Iteration %d, loss = %f", c_step, loss))
+    print(p)
   }
 }
 
@@ -409,8 +419,7 @@ draw_loss_function(compute_loss, data, model, phi_all)
 ```
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| fig-asp: 1
 
 # TODO -- Experiment with different learning rates, starting points, batch sizes, number of steps.  Get a feel for this.
 set.seed(1)
@@ -434,8 +443,7 @@ draw_loss_function(compute_loss, data, model, phi_all)
 ```
      
 ```{r}
-#| fig-width: 8
-#| fig-height: 8
+#| fig-asp: 1
 
 # TODO -- Add a learning rate schedule.  Reduce the learning rate by a factor of beta every M iterations
 set.seed(1)
