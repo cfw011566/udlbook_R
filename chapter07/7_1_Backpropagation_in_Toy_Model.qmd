@@ -1,7 +1,7 @@
 ---
 title: "7.1 Backpropagation in Toy Model"
 author: "CF Wang"
-date: "2026-01-20"
+date: "2026-01-21"
 format: html
 ---
 
