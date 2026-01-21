@@ -56,7 +56,7 @@ get_loss_function_for_plot <- function() {
 #| label: draw-function
 
 # Plotting function
-draw_function <- function(phi0mesh, phi1mesh, loss_function, opt_path) {
+draw_function <- function(phi0mesh, phi1mesh, loss_function, opt_path = NULL, title = NULL, parameter = NULL) {
   df <- expand.grid(phi0 = phi0mesh, phi1 = phi1mesh)
   df$loss <- c(loss_function)
   p <- ggplot() +
@@ -79,6 +79,13 @@ draw_function <- function(phi0mesh, phi1mesh, loss_function, opt_path) {
   if (!is.null(opt_path)) {
     p <- p + geom_point(aes(x = opt_path[1,], y = opt_path[2,]), color = "red3")
     p <- p + geom_path(aes(x = opt_path[1,], y = opt_path[2,]), color = "red3")
+  }
+  if (!is.null(title)) {
+    # p <- p + ggtitle(title) + theme(plot.title = element_text(hjust = 0.5)) 
+    p <- p + annotate("text", x = 0.95, y = -0.90, hjust = 1, label = title, color = "black")
+  }
+  if (!is.null(parameter)) {
+    p <- p + annotate("text", x = 0.95, y = -0.95, hjust = 1, label = parameter, color = "black")
   }
   p
 }
@@ -116,9 +123,11 @@ start_posn[2,1] <- -0.9
 
 # Run gradient descent
 grad_path1 <- grad_descent(start_posn, n_steps = 200, alpha = 0.08)
-draw_function(phi0mesh, phi1mesh, loss_function, grad_path1)
+parameter <- expression(alpha*" = 0.05")
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path1, "Gradient descent", parameter)
 grad_path2 <- grad_descent(start_posn, n_steps = 40, alpha = 1.0)
-draw_function(phi0mesh, phi1mesh, loss_function, grad_path2)
+parameter <- expression(alpha*" = 1.0")
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path2, "Gradient descent", parameter)
 ```
 
 Because the function changes much faster in $\phi_1$ than in $\phi_0$, there is no great step size to choose. If we set the step size so that it makes sensible progress in the $\phi_1$ direction, then it takes many iterations to converge. If we set the step size so that we make sensible progress in the $\phi_0$ direction, then the path oscillates in the $\phi_1$ direction.
@@ -158,7 +167,8 @@ start_posn[2,1] <- -0.9
 
 # Run gradient descent
 grad_path1 <- normalized_gradients(start_posn, n_steps = 40, alpha = 0.08)
-draw_function(phi0mesh, phi1mesh, loss_function, grad_path1)
+parameter <- expression(alpha*" = 0.05")
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path1, "Normalized gradients", parameter)
 ```
 
 This moves towards the minimum at a sensible speed, but we never actually converge -- the solution just bounces back and forth between the last two points. To make it converge, we add momentum to both the estimates of the gradient and the pointwise squared gradient. We also modify the statistics by a factor that depends on the time to make sure the progress is not slow to start with.
@@ -206,5 +216,6 @@ start_posn[2,1] <- -0.9
 
 # Run gradient descent
 grad_path1 <- adam(start_posn, n_steps = 60, alpha = 0.05)
-draw_function(phi0mesh, phi1mesh, loss_function, grad_path1)
+parameter <- expression(alpha*" = 0.05,"*beta*" = 0.9,"*gamma*" = 0.99")
+draw_function(phi0mesh, phi1mesh, loss_function, grad_path1, "Adam", parameter)
 ```

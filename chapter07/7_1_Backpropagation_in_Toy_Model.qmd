@@ -1,21 +1,17 @@
 ---
 title: "7.1 Backpropagation in Toy Model"
 author: "CF Wang"
-date: "2026-01-08"
+date: "2026-01-20"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
-
-```{r}
-#| label: load library
-#| echo: false
+#| out-width: 70%
 ```
 
 This notebook computes the derivatives of the toy function discussed in section 7.3 of the book.
