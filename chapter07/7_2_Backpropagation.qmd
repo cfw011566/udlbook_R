@@ -1,21 +1,17 @@
 ---
 title: "7.2 Backpropagation"
 author: "CF Wang"
-date: "2026-01-08"
+date: "2026-01-22"
 format: html
 ---
 
 ```{r}
 #| label: setup
-#| echo: true
+#| include: false
 #| fig-width: 6
-#| fig-height: 6
+#| fig-asp: 0.618
 #| fig-align: center
-```
-
-```{r}
-#| label: load library
-#| echo: false
+#| out-width: 70%
 ```
 
 This notebook runs the backpropagation algorithm on a deep neural network as described in section 7.4 of the book.
@@ -23,6 +19,8 @@ This notebook runs the backpropagation algorithm on a deep neural network as des
 First let's define a neural network. We'll just choose the weights and biases randomly for now
 
 ```{r}
+#| label: create-nerual-network
+
 # Set seed so we always get the same random numbers
 set.seed(0)
 
@@ -54,6 +52,7 @@ for (layer in 2:K) {
 
 ```{r}
 #| label: ReLU
+
 # Define the Rectified Linear Unit (ReLU) function
 ReLU <- function(preactivation) {
   ifelse(preactivation > 0, preactivation, 0)
@@ -65,6 +64,8 @@ Now let's run our random network. The weight matrices $\boldsymbol\Omega_{0...K}
 We know that we will need the preactivations $\text{f}_{0...K}$ and the activations $\text{h}_{1...K}$ for the forward pass of backpropagation, so we'll store and return these as well.
  
 ```{r}
+#| label: compute-network-function
+
 compute_network_output <- function(net_input, all_weights, all_biases) {
   # Retrieve number of layers
   K <- length(all_weights) - 1
@@ -98,6 +99,8 @@ compute_network_output <- function(net_input, all_weights, all_biases) {
 ```
  
 ```{r}
+#| label: test-compute-network
+
 # Define input
 net_input <- matrix(1, nrow = D_i, ncol = 1) * 1.2
 # Compute network output
@@ -105,12 +108,15 @@ network <- compute_network_output(net_input, all_weights, all_biases)
 net_output <- network$net_output
 all_f <- network$all_f
 all_h <- network$all_h
-sprintf("True output = %3.3f, Your answer = %3.3f", 1.907, network$net_output)
+#sprintf("True output = %3.3f, Your answer = %3.3f", 1.907, network$net_output)
+sprintf("True output = %3.3f, Your answer = %3.3f", -0.577, network$net_output)
 ```
 
 Now let's define a loss function. We'll just use the least squares loss function. We'll also write a function to compute dloss_doutput
 
 ```{r}
+#| label: loss-function
+
 least_squares_loss <- function(net_output, y) {
   sum((net_output - y)^2)
 }
@@ -121,6 +127,8 @@ d_loss_d_output <- function(net_output, y) {
 ```
 
 ```{r}
+#| label: test-loss-function
+
 y <- matrix(1, nrow = D_o, ncol = 1) * 20.0
 loss <- least_squares_loss(network$net_output, y)
 sprintf("y = %3.3f Loss = %3.3f", y, loss)
@@ -129,6 +137,8 @@ sprintf("y = %3.3f Loss = %3.3f", y, loss)
 Now let's compute the derivatives of the network. We already computed the forward pass. Let's compute the backward pass. 
 
 ```{r}
+#| label: indicator-and-backward-propagation
+
 # We'll need the indicator function
 indicator_function <- function(x) {
   x_in <- c(x)
@@ -148,7 +158,7 @@ backward_pass <- function(all_weights, all_biases, all_f, all_h, y) {
   # Again for convenience we'll stick with the convention that all_h[0] is the net input and all_f[k] in the net output
 
   # Compute derivatives of the loss with respect to the network output
-  all_dl_df[[K+1]] <- c(d_loss_d_output(all_f[[K+1]],y))
+  all_dl_df[[K+1]] <- c(d_loss_d_output(all_f[[K+1]], y))
 
   # Now work backwards through the network
   for (layer in rev(1:(K+1))) {
@@ -179,9 +189,72 @@ backward_pass <- function(all_weights, all_biases, all_f, all_h, y) {
 ```
 
 ```{r}
+#| label: test-backward_pass
+
 back_pass <- backward_pass(all_weights, all_biases, all_f, all_h, y)
 all_dl_dweights <- back_pass$all_dl_dweights
-all_dl_dbiases <- back_pass$all_dl_dbaiases
+all_dl_dbiases <- back_pass$all_dl_dbiases
 ```
 
+```{r}
+#| label: compare-with-finite-differences
 
+# Make space for derivatives computed by finite differences
+all_dl_dweights_fd <- vector(mode = "list", length = K+1)
+all_dl_dbiases_fd <- vector(mode = "list", length = K+1)
+
+# Let's test if we have the derivatives right using finite differences
+delta_fd <- 0.000001
+
+# Test the dervatives of the bias vectors
+for (layer in 1:(K+1)) {
+  dl_dbias <- all_dl_dbiases[[layer]]
+  # For every element in the bias
+  for (row in 1:nrow(all_biases[[layer]])) {
+    # Take copy of biases  We'll change one element each time
+    all_biases_copy <- all_biases
+    all_biases_copy[[layer]][row] <- all_biases_copy[[layer]][row] + delta_fd
+    network_output_1 <- compute_network_output(net_input, all_weights, all_biases_copy)
+    network_output_2 <- compute_network_output(net_input, all_weights, all_biases)
+    dl_dbias[row] <- (least_squares_loss(network_output_1$net_output, y) - least_squares_loss(network_output_2$net_output, y)) / delta_fd
+  }
+  all_dl_dbiases_fd[[layer]] <- dl_dbias
+  print("-----------------------------------------------")
+  print(sprintf("Bias %d, derivatives from backprop:", layer))
+  print(all_dl_dbiases[[layer]])
+  print(sprintf("Bias %d, derivatives from finite differences", layer))
+  print(all_dl_dbiases_fd[[layer]])
+  if (isTRUE(all.equal(all_dl_dbiases_fd[[layer]], all_dl_dbiases[[layer]], tolerance = 1e-07))) {
+    print("Success!  Derivatives match.")
+  } else {
+    print("Failure!  Derivatives different.") 
+  }
+}
+
+# Test the derivatives of the weights matrices
+for (layer in 1:(K+1)) {
+  dl_dweight <- all_dl_dweights[[layer]]
+  # For every element in the bias
+  for (row in nrow(all_weights[[layer]])) {
+    for (col in ncol(all_weights[[layer]])) {
+      # Take copy of biases  We'll change one element each time
+      all_weights_copy <- all_weights
+      all_weights_copy[[layer]][row][col] <- all_weights_copy[[layer]][row][col] + delta_fd
+      network_output_1 <- compute_network_output(net_input, all_weights_copy, all_biases)
+      network_output_2 <- compute_network_output(net_input, all_weights, all_biases)
+      dl_dweight[row][col] <- (least_squares_loss(network_output_1$net_output, y) - least_squares_loss(network_output_2$net_output, y)) / delta_fd
+    }
+  }
+  all_dl_dweights_fd[[layer]] <- dl_dweight
+  print("-----------------------------------------------")
+  print(sprintf("Weight %d, derivatives from backprop:", layer))
+  print(all_dl_dweights[[layer]])
+  print(sprintf("Weight %d, derivatives from finite differences", layer))
+  print(all_dl_dweights_fd[[layer]])
+  if (isTRUE(all.equal(all_dl_dweights_fd[[layer]], all_dl_dweights[[layer]], tolerance = 1e-07))) {
+    print("Success!  Derivatives match.")
+  } else {
+    print("Failure!  Derivatives different.")
+  }
+}
+```
