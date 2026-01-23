@@ -1,0 +1,345 @@
+---
+title: "7_3_Initialization"
+author: "CF Wang"
+date: "2026-01-22"
+format: html
+---
+
+```{r}
+#| label: setup
+#| include: false
+#| fig-width: 6
+#| fig-asp: 0.618
+#| fig-align: center
+#| out-width: 70%
+```
+
+This notebook explores weight initialization in deep neural networks as described in section 7.5 of the book.
+
+First let's define a neural network. We'll just choose the weights and biases randomly for now
+
+```{r}
+#| label: define-neural-network
+
+init_params <- function(K, D, sigma_sq_omega) {
+  # Set seed so we always get the same random numbers
+  set.seed(0)
+
+  # Input layer
+  D_i <- 1
+  # Output layer
+  D_o <- 1
+
+  # Make empty lists
+  all_weights <- vector(mode = "list", length = K + 1)
+  all_biases <- vector(mode = "list", length = K + 1)
+
+  # Create input and output layers
+  all_weights[[1]] <- matrix(rnorm(D*D_i), nrow = D, ncol = D_i) * sqrt(sigma_sq_omega)
+  all_weights[[K+1]] <- matrix(rnorm(D_o*D), nrow = D_o, ncol = D) * sqrt(sigma_sq_omega)
+  all_biases[[1]] <- matrix(0, nrow = D, ncol = 1)
+  all_biases[[K+1]] <- matrix(0, nrow = D_o, ncol = 1)
+
+  # Create intermediate layers
+  for (layer in 2:K) {
+    all_weights[[layer]] <- matrix(rnorm(D*D), nrow = D, ncol = D) * sqrt(sigma_sq_omega)
+    all_biases[[layer]] <- matrix(0, nrow = D, ncol = 1)
+  }
+
+  list(all_weights = all_weights, all_biases = all_biases)
+}
+```
+
+```{r}
+#| label: ReLU-function
+
+# Define the Rectified Linear Unit (ReLU) function
+ReLU <- function(preactivation) {
+  ifelse(preactivation > 0, preactivation, 0)
+}
+```
+
+```{r}
+#| label: compute-network-function
+
+compute_network_output <- function(net_input, all_weights, all_biases) {
+  # Retrieve number of layers
+  K <- length(all_weights) - 1
+
+  # We'll store the pre-activations at each layer in a list "all_f"
+  # and the activations in a second list "all_h".
+  all_f <- vector(mode = "list", length = K+1)
+  all_h <- vector(mode = "list", length = K+1)
+
+  #For convenience, we'll set
+  # all_h[0] to be the input, and all_f[K] will be the output
+  all_h[[1]] <- net_input
+
+  # Run through the layers, calculating all_f[0...K-1] and all_h[1...K]
+  for (layer in 1:K) {
+      # Update preactivations and activations at this layer according to eqn 7.17
+      all_f[[layer]] <- all_biases[[layer]] + all_weights[[layer]] %*% all_h[[layer]]
+      all_h[[layer+1]] <- ReLU(all_f[[layer]])
+  }
+  # Compute the output from the last hidden layer
+  all_f[K+1] <- all_biases[[K+1]] + all_weights[[K+1]] %*% all_h[[K+1]]
+
+  # Retrieve the output
+  net_output <- all_f[[K+1]]
+
+  list(net_output = net_output, all_f = all_f, all_h = all_h)
+}
+```
+
+Now let's investigate how the size of the outputs vary as we change the initialization variance:
+
+```{r}
+# Number of layers
+K <- 5
+# Number of neurons per layer
+D <- 8
+# Input layer
+D_i <- 1
+# Output layer
+D_o <- 1
+# Set variance of initial weights to 1
+sigma_sq_omega <- 1.0
+# Initialize parameters
+nn_parameters <- init_params(K, D, sigma_sq_omega)
+all_weights <- nn_parameters$all_weights
+all_biases <- nn_parameters$all_biases
+
+n_data <- 1000
+data_in <- matrix(rnorm(1*D_i), nrow = 1, ncol = D_i)
+nn_output <-  compute_network_output(data_in, all_weights, all_biases)
+all_h <- nn_output$all_h
+
+for (layer in 1:(K+1)) {
+  n <- length(all_h[[layer]])
+  # Population standard deviation (matching numpy.std() default)
+  r_pop_std <- sd(all_h[[layer]]) * sqrt((n - 1) / n)
+  r_std <- sd(all_h[[layer]])
+  print(sprintf("Layer %d, std of hidden units = %3.3f (%3.3f)", layer, r_pop_std, r_std))
+}
+```
+
+```{r}
+#| eval: false
+
+# You can see that the values of the hidden units are increasing on average (the variance is across all hidden units at the layer
+# and the 1000 training examples
+
+# TODO
+# Change this to 50 layers with 80 hidden units per layer
+
+# Number of layers
+K <- 50
+# Number of neurons per layer
+D <- 80
+
+sigma_sq_omega <- 1.0
+nn_parameters <- init_params(K, D, sigma_sq_omega)
+all_weights <- nn_parameters$all_weights
+all_biases <- nn_parameters$all_biases
+
+n_data <- 1000
+data_in <- matrix(rnorm(1*D_i), nrow = 1, ncol = D_i)
+nn_output <-  compute_network_output(data_in, all_weights, all_biases)
+all_h <- nn_output$all_h
+
+for (layer in 1:(K+1)) {
+  n <- length(all_h[[layer]])
+  r_pop_std <- sd(all_h[[layer]]) * sqrt((n - 1) / n)
+  print(sprintf("Layer %d, std of hidden units = %3.3f", layer, r_pop_std))
+}
+
+# TODO
+# Now experiment with sigma_sq_omega to try to stop the variance of the forward computation exploding
+```
+
+Now let's define a loss function. We'll just use the least squares loss function. We'll also write a function to compute dloss_doutput
+
+```{r}
+#| label: loss-function
+
+least_squares_loss <- function(net_output, y) {
+  sum((net_output - y)^2)
+}
+
+d_loss_d_output <- function(net_output, y) {
+  2 * (net_output - y)
+}
+```
+
+Here's the code for the backward pass
+
+```{r}
+#| label: backward-pass
+
+# We'll need the indicator function
+indicator_function <- function(x) {
+  x_in <- c(x)
+  x_in[x_in>=0] <- 1
+  x_in[x_in<0] <- 0
+  x_in
+}
+
+# Main backward pass routine
+backward_pass <- function(all_weights, all_biases, all_f, all_h, y) {
+  # Retrieve number of layers
+  K <- length(all_weights) - 1
+
+  # We'll store the derivatives dl_dweights and dl_dbiases in lists as well
+  all_dl_dweights <- vector(mode = "list", length = K+1)
+  all_dl_dbiases <- vector(mode = "list", length = K+1)
+  # And we'll store the derivatives of the loss with respect to the activation and preactivations in lists
+  all_dl_df <- vector(mode = "list", length = K+1)
+  all_dl_dh <- vector(mode = "list", length = K+1)
+  # Again for convenience we'll stick with the convention that all_h[0] is the net input and all_f[k] in the net output
+
+  # Compute derivatives of the loss with respect to the network output
+  all_dl_df[[K+1]] <- c(d_loss_d_output(all_f[[K+1]], y))
+
+  # Now work backwards through the network
+  for (layer in rev(1:(K+1))) {
+    # Calculate the derivatives of the loss with respect to the biases at layer from all_dl_df[layer]. (eq 7.22)
+    all_dl_dbiases[[layer]] <- all_dl_df[[layer]]
+
+    # Calculate the derivatives of the loss with respect to the weights at layer from all_dl_df[layer] and all_h[layer] (eq 7.23)
+    all_dl_dweights[[layer]] <- all_dl_df[[layer]] %*% t(all_h[[layer]])
+
+    # Calculate the derivatives of the loss with respect to the activations from weight and derivatives of next preactivations (second part of last line of eq 7.25)
+    all_dl_dh[[layer]] <- t(all_weights[[layer]]) %*% all_dl_df[[layer]]
+
+    # Calculate the derivatives of the loss with respect to the pre-activation f (use derivative of ReLu function, first part of last line of eq. 7.25)
+    if (layer > 1) {
+      all_dl_df[[layer-1]] <- indicator_function(all_f[[layer-1]]) * all_dl_dh[[layer]]
+    }
+  }
+
+  list(all_dl_dweights = all_dl_dweights, all_dl_dbiases = all_dl_dbiases, all_dl_dh = all_dl_dh, all_dl_df = all_dl_df)
+}
+```
+
+Now let's look at what happens to the magnitude of the gradients on the way back.
+
+
+```{r}
+# Number of layers
+K <- 5
+# Number of neurons per layer
+D <- 8
+# Input layer
+D_i <- 1
+# Output layer
+D_o <- 1
+# Set variance of initial weights to 1
+sigma_sq_omega <- 1.0
+# Initialize parameters
+nn_parameters <- init_params(K, D, sigma_sq_omega)
+all_weights <- nn_parameters$all_weights
+all_biases <- nn_parameters$all_biases
+
+# For simplicity we'll just consider the gradients of the weights and biases between the first and last hidden layer
+n_data <- 100
+aggregate_dl_df <- vector(mode = "list", length = K+1)
+for (layer in 1:(K+1)) {
+  # These 3D arrays will store the gradients for every data point
+  aggregate_dl_df[[layer]] <- matrix(0, nrow = D, ncol = n_data)
+}
+
+# We'll have to compute the derivatives of the parameters for each data point separately
+for (c_data in 1:n_data) {
+  data_in <- matrix(rnorm(1*1), nrow = 1, ncol = 1)
+  y <- matrix(0, nrow = 1, ncol = 1)
+  nn_output <- compute_network_output(data_in, all_weights, all_biases)
+  net_output <- nn_output$net_output
+  all_f <- nn_output$all_f
+  all_h <- nn_output$all_h
+  
+  back_output <- backward_pass(all_weights, all_biases, all_f, all_h, y)
+  all_dl_dweights <- back_output$all_dl_dweights
+  all_dl_dbiases <- back_output$all_dl_dbiases
+  all_dl_dh <- back_output$all_dl_dh
+  all_dl_df <- back_output$all_dl_df
+  for (layer in 1:(K+1)) {
+    aggregate_dl_df[[layer]][,c_data] <- c(all_dl_df[[layer]])
+  }
+}
+
+for (layer in (K+1):1) {
+  data <- c(aggregate_dl_df[[layer]])
+  n <- length(data)
+  r_pop_std <- sd(data) * sqrt((n - 1) / n)
+  r_std <- sd(data)
+  print(sprintf("Layer %d, std of dl_dh = %3.3f (%3.3f)", layer, r_pop_std, r_std))
+}
+```
+
+```{r}
+#| eval: false
+
+# You can see that the gradients of the hidden units are increasing on average (the standard deviation is across all hidden units at the layer
+# and the 100 training examples
+
+# TODO
+# Change this to 50 layers with 80 hidden units per layer
+# Number of layers
+K <- 50
+# Number of neurons per layer
+D <- 80
+# Input layer
+D_i <- 1
+# Output layer
+D_o <- 1
+# Set variance of initial weights to 1
+sigma_sq_omega <- 1.0
+# Initialize parameters
+nn_parameters <- init_params(K, D, sigma_sq_omega)
+all_weights <- nn_parameters$all_weights
+all_biases <- nn_parameters$all_biases
+
+# For simplicity we'll just consider the gradients of the weights and biases between the first and last hidden layer
+n_data <- 100
+aggregate_dl_df <- vector(mode = "list", length = K+1)
+for (layer in 1:(K+1)) {
+  # These 3D arrays will store the gradients for every data point
+  aggregate_dl_df[[layer]] <- matrix(0, nrow = D, ncol = n_data)
+}
+
+# We'll have to compute the derivatives of the parameters for each data point separately
+for (c_data in 1:n_data) {
+  data_in <- matrix(rnorm(1*1), nrow = 1, ncol = 1)
+  y <- matrix(0, nrow = 1, ncol = 1)
+  nn_output <- compute_network_output(data_in, all_weights, all_biases)
+  net_output <- nn_output$net_output
+  all_f <- nn_output$all_f
+  all_h <- nn_output$all_h
+  
+  back_output <- backward_pass(all_weights, all_biases, all_f, all_h, y)
+  all_dl_dweights <- back_output$all_dl_dweights
+  all_dl_dbiases <- back_output$all_dl_dbiases
+  all_dl_dh <- back_output$all_dl_dh
+  all_dl_df <- back_output$all_dl_df
+  for (layer in 1:(K+1)) {
+    aggregate_dl_df[[layer]][,c_data] <- c(all_dl_df[[layer]])
+  }
+}
+
+for (layer in (K+1):1) {
+  data <- c(aggregate_dl_df[[layer]])
+  n <- length(data)
+  r_pop_std <- sd(data) * sqrt((n - 1) / n)
+  r_std <- sd(data)
+  print(sprintf("Layer %d, std of dl_dh = %3.3g (%3.3g)", layer, r_pop_std, r_std))
+}
+
+# TODO
+# Now experiment with sigma_sq_omega to try to stop the variance of the gradients exploding
+```
+
+
+
+
+
+
