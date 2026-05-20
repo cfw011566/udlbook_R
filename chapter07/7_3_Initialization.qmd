@@ -109,12 +109,13 @@ nn_parameters <- init_params(K, D, sigma_sq_omega)
 all_weights <- nn_parameters$all_weights
 all_biases <- nn_parameters$all_biases
 
-n_data <- 1000
+n_data <- 10
 data_in <- matrix(rnorm(1*D_i), nrow = 1, ncol = D_i)
+#data_in <- matrix(rnorm(n_data*1), nrow = 1, ncol = n_data)
 nn_output <-  compute_network_output(data_in, all_weights, all_biases)
 all_h <- nn_output$all_h
 
-for (layer in 1:(K+1)) {
+for (layer in 2:(K+1)) {
   n <- length(all_h[[layer]])
   # Population standard deviation (matching numpy.std() default)
   r_pop_std <- sd(all_h[[layer]]) * sqrt((n - 1) / n)

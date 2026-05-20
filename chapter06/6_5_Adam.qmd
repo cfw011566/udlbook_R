@@ -205,7 +205,7 @@ adam <- function(start_posn, n_steps, alpha, beta = 0.9, gamma = 0.99, epsilon =
 
     # TODO -- apply the update rule (equation 6.17)
     # Replace this line:
-    grad_path[,c_step+1] <- grad_path[,c_step] - alpha * m / (sqrt(v_tilde)+epsilon)
+    grad_path[,c_step+1] <- grad_path[,c_step] - alpha * m_tilde / (sqrt(v_tilde)+epsilon)
   }
   grad_path
 }   

@@ -1,0 +1,298 @@
+---
+title: "8.2 Bias Variance Trade Off"
+author: "CF Wang"
+date: "2026-02-09"
+format: html
+---
+
+```{r}
+#| label: setup
+#| include: false
+#| fig-width: 6
+#| fig-asp: 0.618
+#| fig-align: center
+#| out-width: 70%
+
+library(ggplot2)
+```
+
+This notebook investigates the bias-variance trade-off for the toy model used throughout chapter 8 and reproduces the bias/variance trade off curves seen in figure 8.9.
+
+```{r}
+#| label: true-function
+
+# The true function that we are trying to estimate, defined on [0,1]
+true_function <- function(x) {
+    exp(sin(x*(2*3.1413)))
+}
+```
+
+```{r}
+#| label: generate-data
+
+# Generate some data points with or without noise
+generate_data <- function(n_data, sigma_y = 0.3) {
+  # Generate x values quasi uniformly
+  # x <- np.ones(n_data)
+  # for i in range(n_data):
+  #     x[i] = np.random.uniform(i/n_data, (i+1)/n_data, 1)
+  x <- seq(1, n_data) - runif(n_data, min = 0, max = 1)
+  x <- x / n_data
+
+  # y value from running through function and adding noise
+  # y <- np.ones(n_data)
+  # for i in range(n_data):
+  #     y[i] = true_function(x[i])
+  #     y[i] += np.random.normal(0, sigma_y, 1)
+  # return x,y
+  y <- true_function(x) + rnorm(n_data, mean = 0, sd = sigma_y)
+  
+  list(x_data = x, y_data = y)
+}
+```
+
+```{r}
+#| label: plot-function
+
+# Draw the fitted function, together with uncertainty used to generate points
+plot_function <- function(x_func, y_func, x_data = NULL,y_data = NULL, x_model = NULL, y_model = NULL, sigma_func = NULL, sigma_model = NULL) {
+  
+  p <- ggplot() +
+    xlim(c(0, 1)) +
+    xlab("Input, x") + ylab("Output, y")
+  
+  # ax.plot(x_func, y_func, 'k-')
+  p <- p + geom_line(aes(x = x_func, y = y_func), linewidth = 0.75)
+  
+  if (!is.null(sigma_func)) {
+    # ax.fill_between(x_func, y_func-2*sigma_func, y_func+2*sigma_func, color='lightgray')
+    y1 <- y_func - 2*sigma_func
+    y2 <- y_func + 2*sigma_func
+    p <- p +
+      geom_ribbon(aes(x = x_func, ymin = y1, ymax = y2), fill = "lightgray", alpha = 0.5)
+  }
+  
+  if (!is.null(x_data)) {
+    # ax.plot(x_data, y_data, 'o', color='#d18362')
+    p <- p + geom_point(aes(x = x_data, y = y_data), color = "#d18362")
+  }
+  
+  if (!is.null(x_model)) {
+    # ax.plot(x_model, y_model, '-', color='#7fe7de')
+    p <- p + geom_line(aes(x = x_model, y = y_model), color = "#7fe7de", linewidth = 0.75)
+  }
+  
+  if (!is.null(sigma_model)) {
+    # ax.fill_between(x_model, y_model-2*sigma_model, y_model+2*sigma_model, color='lightgray')
+    y1 <- y_model - 2*sigma_model
+    y2 <- y_model + 2*sigma_model
+    p <- p +
+      geom_ribbon(aes(x = x_model, ymin = y1, ymax = y2), fill = "lightgray", alpha = 0.5)
+  }
+  
+  p
+}
+```
+
+```{r}
+#| label: test-plot-function
+
+# Generate true function
+x_func <- seq(0, 1.0, length.out = 100)
+y_func <- true_function(x_func)
+
+# Generate some data points
+set.seed(1)
+sigma_func <- 0.3
+n_data <- 15
+result <- generate_data(n_data, sigma_func)
+x_data <- result$x_data
+y_data <- result$y_data
+
+# Plot the functinon, data and uncertainty
+plot_function(x_func, y_func, x_data, y_data, sigma_func = sigma_func)
+```
+
+```{r}
+#| label: network-function
+
+# Define model -- beta is a scalar and omega has size n_hidden,1
+network <- function(x, beta, omega) {
+    # Retrieve number of hidden units
+    n_hidden <- length(omega)
+
+    y <- rep(0, times = length(x))
+    for (c_hidden in 1:n_hidden) {
+      # Evaluate activations based on shifted lines (figure 8.4b-d)
+      line_vals <- x - (c_hidden-1)/n_hidden
+      h <- line_vals * (line_vals > 0)
+      # Weight activations by omega parameters and sum
+      y <- y + omega[c_hidden] * h
+    }
+    
+    # Add bias, beta
+    y <- y + beta
+}
+```
+
+```{r}
+#| label: fit-model-closed-form
+
+# This fits the n_hidden+1 parameters (see fig 8.4a) in closed form.
+# If you have studied linear algebra, then you will know it is a least
+# squares solution of the form (A^TA)^-1A^Tb.  If you don't recognize that,
+# then just take it on trust that this gives you the best possible solution.
+fit_model_closed_form <- function(x, y, n_hidden) {
+  n_data <- length(x)
+  A <- matrix(1, nrow = n_data, ncol = n_hidden+1)
+  for (i in 1:n_data) {
+    for (j in 2:(n_hidden+1)) {
+      A[i,j] <- x[i] - (j-2)/n_hidden
+      if (A[i,j] < 0) {
+        A[i,j] <- 0
+      }
+    }
+  }
+
+  # beta_omega <- qr.solve(A, y)
+  beta_omega <- solve(t(A) %*% A) %*% t(A) %*% y
+  beta_omega <- c(beta_omega)
+
+  beta <- beta_omega[1]
+  omega <- beta_omega[-1]
+
+  list(beta = beta, omega = omega)
+}
+```
+
+```{r}
+#| label: test-model
+
+# Closed form solution
+n_hidden <- 3
+result <- fit_model_closed_form(x_data, y_data, n_hidden)
+beta <- result$beta
+omega <- result$omega
+
+# Get prediction for model across graph range
+x_model <- seq(0, 1, length.out = 100)
+y_model <- network(x_model, beta, omega)
+
+# Draw the function and the model
+plot_function(x_func, y_func, x_data, y_data, x_model, y_model)
+```
+
+```{r}
+#| label: get-model-mean-variance
+
+# Run the model many times with different datasets and return the mean and variance
+get_model_mean_variance <- function(n_data, n_datasets, n_hidden, sigma_func) {
+  # Create array that stores model results in rows
+  y_model_all <- matrix(0, nrow = n_datasets, ncol = length(x_model))
+
+  for (c_dataset in 1:n_datasets) {
+    # TODO -- Generate n_data x,y, pairs with standard deviation sigma_func
+    # Replace this line
+    result <- generate_data(n_data, sigma_func)
+    x_data <- result$x_data
+    y_data <- result$y_data
+
+    # TODO -- Fit the model
+    # Replace this line:
+    result <- fit_model_closed_form(x_data, y_data, n_hidden)
+    beta <- result$beta
+    omega <- result$omega
+
+    # TODO -- Run the fitted model on x_model
+    # Replace this line
+    # x_model <- seq(0, 1, length.out = 100)
+    y_model <- network(x_model, beta, omega)
+
+    # Store the model results
+    y_model_all[c_dataset,] = y_model
+  }
+
+  # Get mean and standard deviation of model
+  mean_model <- colMeans(y_model_all)
+  std_model <- apply(y_model_all, 2, sd)
+
+  # Return the mean and standard deviation of the fitted model
+  list(mean_model = mean_model, std_model = std_model)
+}
+```
+
+```{r}
+# Let's generate N random data sets, fit the model N times and look the mean and variance
+n_datasets <- 100
+n_data <- 15
+sigma_func <- 0.3
+n_hidden <- 5
+
+# Get mean and variance of fitted model
+set.seed(1)
+result <- get_model_mean_variance(n_data, n_datasets, n_hidden, sigma_func)
+mean_model <- result$mean_model
+std_model <- result$std_model
+
+# Plot the results
+plot_function(x_func, y_func, x_model=x_model, y_model=mean_model, sigma_model=std_model)
+```
+
+```{r}
+# TODO -- Experiment with changing the number of data points and the number of hidden variables
+# in the model.  Get a feeling for what happens in terms of the bias (squared deviation between cyan and black lines)
+# and the variance (gray region) as we manipulate these quantities.
+```
+
+```{r}
+# Plot the noise, bias and variance as a function of capacity
+n_hidden <- 12
+hidden_variables <- 1:n_hidden
+bias <- rep(0, times = length(hidden_variables))
+variance <- rep(0, times = length(hidden_variables))
+
+n_datasets <- 100
+n_data <- 15
+sigma_func <- 0.3
+# n_hidden <- 5
+
+# Set random seed so that we get the same result every time
+set.seed(1)
+
+for (c_hidden in 1:n_hidden) {
+  # Get mean and variance of fitted model
+  result <- get_model_mean_variance(n_data, n_datasets, c_hidden, sigma_func)
+  mean_model <- result$mean_model
+  std_model <- result$std_model
+  
+  # TODO -- Estimate bias and variance
+  # Replace these lines
+
+  # Compute variance -- average of the model variance (average squared deviation of fitted models around mean fitted model)
+  # variance[c_hidden] <- mean((y_model - mean_model)^2)
+  variance[c_hidden] <- mean(std_model^2)
+  # Compute bias (average squared deviation of mean fitted model around true function)
+  bias[c_hidden] <- mean((mean_model - true_function(x_model))^2)
+}
+
+# Plot the results
+colors <- c("Variance" = "black", "Bias" = "red", "Variance+Bias" = "green")
+ggplot() +
+  xlim(c(0, n_hidden)) + ylim(c(0, 0.5)) +
+  labs(x = "Model capacity", y = "Variance", color = NULL) +
+  geom_line(aes(hidden_variables, variance, color = "Variance")) +
+  geom_line(aes(hidden_variables, bias, color = "Bias")) +
+  geom_line(aes(hidden_variables, variance+bias, color = "Variance+Bias")) +
+  scale_color_manual(
+    values = colors,
+    breaks = c("Variance", "Bias", "Variance+Bias"),
+    labels = c("Variance", "Bias", "Variance+Bias")
+  ) +
+  theme(
+#    legend.background = element_rect(fill = "white", color = "black", linewidth = 0.1),
+    legend.position = c(0.95, 0.95),
+    legend.justification = c("right", "top"),
+    legend.text = element_text(size = 11),
+#    legend.key.size = unit(1.0, "lines")
+  )
+```

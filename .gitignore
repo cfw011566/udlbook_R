@@ -5,3 +5,4 @@
 *.tex
 *_files/
 .Rproj.user
+.positai
